@@ -816,123 +816,164 @@ if((param.smartwrap) && (strlen(buf)<2))
           link++;
           while(*link && (*link==' ' || *link==',' || *link=='\t')) link++;
           if(!*link) return(0);
-          if(Strnicmp(link,"link",4))
-          {                               // this is NO link command!
-            if(-1 == FPuts(fh,"<u>")) return(0);
-            while((ch = *buf++) != '\"')
-              if(-1 == MyPutCh(fh,ch)) return(0);
-            if(-1 == FPuts(fh,"</u>")) return(0);
-            buf = link;
-            while(*buf && *buf!=' ') buf++;
-            *buf++ = '\0';
-            if(!param.nowarn) printf("Line %ld: WARNING: '%s' command skipped!\n",linenr,link);
-            while(*buf && *buf!='}') buf++;
-            if(*buf =='}') buf++;
-            break;
-          }
-          link+=4;
-          while(*link && *link==' ') link++;
-          if(!*link) return(0);
-          if(*link == '\"')
-          {
-            link++;
-            linkquot=1;
-          }
-          while(*link && *link!='}')
-          {
-            ch = *link++;
-            if(ch=='\"' && linkquot) break;
-            if(ch==' ' && !linkquot) break;
-            if(ch>='A' && ch<='Z') ch+=32;
-            linkstr[linkpos++] = (ch==' ' || ch==':' ? '_' : ch);
-          }
+          if(Strnicmp(link,"link",4) == 0)
+		  {
+			  link+=4;
+			  while(*link && *link==' ') link++;
+			  if(!*link) return(0);
+			  if(*link == '\"')
+			  {
+				  link++;
+				  linkquot=1;
+			  }
+			  while(*link && *link!='}')
+			  {
+				  ch = *link++;
+				  if(ch=='\"' && linkquot) break;
+				  if(ch==' ' && !linkquot) break;
+				  if(ch>='A' && ch<='Z') ch+=32;
+				  linkstr[linkpos++] = (ch==' ' || ch==':' ? '_' : ch);
+			  }
 
-			if(*link == ' ') link++;
+			  if(*link == ' ') link++;
 
-			if(*link >= '0' && *link <= '9')
-			{
-				linkline = atoi(link);
-			}
-			else
-			{
-				linkline=0;
-			}
+			  if(*link >= '0' && *link <= '9')
+			  {
+				  linkline = atoi(link);
+			  }
+			  else
+			  {
+				  linkline=0;
+			  }
 
-          while(*link && *link!='}') link++;
-          while(linkpos>0 && linkstr[linkpos-1] == '_') linkpos--;
-          if(linkstr[linkpos-1] == '\"')
-			{
-			 linkpos--;
-			}
-          linkstr[linkpos] = '\0';
-          if(!*link) return(0);
-          link++;
-          if(-1 == FPuts(fh,"<a href=\"")) return(0);
+			  while(*link && *link!='}') link++;
+			  while(linkpos>0 && linkstr[linkpos-1] == '_') linkpos--;
+			  if(linkstr[linkpos-1] == '\"')
+			  {
+				  linkpos--;
+			  }
+			  linkstr[linkpos] = '\0';
+			  if(!*link) return(0);
+			  link++;
+			  if(-1 == FPuts(fh,"<a href=\"")) return(0);
 
-			if(param.singlefile && strchr(linkstr,'/'))
-			{
-				char *temp = strchr(linkstr,'/');
-				*temp = '\0';
+			  if(param.singlefile && strchr(linkstr,'/'))
+			  {
+				  char *temp = strchr(linkstr,'/');
+				  *temp = '\0';
 
-				if(-1 == FPuts(fh,linkstr)) return(0);
+				  if(-1 == FPuts(fh,linkstr)) return(0);
 
-          		if(param.msdos)
-          		{
-            		if(-1 == FPuts(fh,".htm")) return(0);
-          		}
-          		else
-          		{
-            		if(-1 == FPuts(fh,".html")) return(0);
-          		}
+				  if(param.msdos)
+				  {
+					  if(-1 == FPuts(fh,".htm")) return(0);
+				  }
+				  else
+				  {
+					  if(-1 == FPuts(fh,".html")) return(0);
+				  }
 
-				*temp = '#';
-				strcpy(linkstr,temp);
-			}
-			else if(param.linkadd)
-          	{
-            	if(-1 == FPuts(fh,param.linkadd)) return(0);
-          	}
+				  *temp = '#';
+				  strcpy(linkstr,temp);
+			  }
+			  else if(param.linkadd)
+			  {
+				  if(-1 == FPuts(fh,param.linkadd)) return(0);
+			  }
 
-			if(param.dotdotslash && !param.singlefile && strchr(linkstr,'/'))
-			{
-				if(-1 == FPuts(fh,"../")) return(0);
-			}
-          if(-1 == FPuts(fh,linkstr)) return(0);
+			  if(param.dotdotslash && !param.singlefile && strchr(linkstr,'/'))
+			  {
+				  if(-1 == FPuts(fh,"../")) return(0);
+			  }
+			  if(-1 == FPuts(fh,linkstr)) return(0);
 
-			if(!param.singlefile)
-			{
-          		if(param.msdos)
-          		{
-            		if(-1 == FPuts(fh,".htm")) return(0);
-          		}
-          		else
-          		{
-            		if(-1 == FPuts(fh,".html")) return(0);
-          		}
-			}
+			  if(!param.singlefile)
+			  {
+				  if(param.msdos)
+				  {
+					  if(-1 == FPuts(fh,".htm")) return(0);
+				  }
+				  else
+				  {
+					  if(-1 == FPuts(fh,".html")) return(0);
+				  }
+			  }
 
-			if(linkline)
-			{
-				if(!param.singlefile)
-				{
-					char temp[20];
-					sprintf(temp,"#%ld",linkline);
-            		if(-1 == FPuts(fh,temp)) return(0);
-				}
-				else if(param.singlefile && param.numberlines)
-				{
-					char temp[20];
-					sprintf(temp,"_line%ld",linkline);
-            		if(-1 == FPuts(fh,temp)) return(0);
-				}
-			}
+			  if(linkline)
+			  {
+				  if(!param.singlefile)
+				  {
+					  char temp[20];
+					  sprintf(temp,"#%ld",linkline);
+					  if(-1 == FPuts(fh,temp)) return(0);
+				  }
+				  else if(param.singlefile && param.numberlines)
+				  {
+					  char temp[20];
+					  sprintf(temp,"_line%ld",linkline);
+					  if(-1 == FPuts(fh,temp)) return(0);
+				  }
+			  }
 
-            if(-1 == FPuts(fh,"\">")) return(0);
+			  if(-1 == FPuts(fh,"\">")) return(0);
 
-          while((ch = *buf++) != '\"')
-            if(-1 == MyPutCh(fh,ch)) return(0);
-          if(-1 == FPuts(fh,"</a>")) return(0);
-          buf = link;
+			  while((ch = *buf++) != '\"')
+            	if(-1 == MyPutCh(fh,ch)) return(0);
+          	  if(-1 == FPuts(fh,"</a>")) return(0);
+          	  buf = link;
+		  } else if(strncmp(link, "system", 6) == 0) {
+			link += 6;
+			  while(*link && *link==' ') link++;
+			  if(!*link) return(0);
+			  if(*link == '\"')
+			  {
+				  link++;
+				  linkquot=1;
+			  }
+			  while(*link && *link!='}')
+			  {
+				  ch = *link++;
+				  if(ch=='\"' && linkquot) break;
+				  if(ch==' ' && !linkquot) break;
+				  linkstr[linkpos++] = ch;
+			  }
+
+			  if(*link == ' ') link++;
+
+			  linkline=0;
+
+			  while(*link && *link!='}') link++;
+			  while(linkpos>0 && linkstr[linkpos-1] == '_') linkpos--;
+			  if(linkstr[linkpos-1] == '\"')
+			  {
+				  linkpos--;
+			  }
+			  linkstr[linkpos] = '\0';
+			  if(!*link) return(0);
+			  link++;
+			  if(-1 == FPuts(fh,"<a href=\"")) return(0);
+
+			  if(-1 == FPuts(fh,linkstr + 8)) return(0); // skip "openurl"
+
+			  if(-1 == FPuts(fh,"\">")) return(0);
+
+			  while((ch = *buf++) != '\"')
+            	if(-1 == MyPutCh(fh,ch)) return(0);
+          	  if(-1 == FPuts(fh,"</a>")) return(0);
+          	  buf = link;
+		  } else {
+				if(-1 == FPuts(fh,"<u>")) return(0);
+				while((ch = *buf++) != '\"')
+					if(-1 == MyPutCh(fh,ch)) return(0);
+				if(-1 == FPuts(fh,"</u>")) return(0);
+				buf = link;
+				while(*buf && *buf!=' ') buf++;
+				*buf++ = '\0';
+				if(!param.nowarn) printf("Line %ld: WARNING: '%s' command skipped!\n",linenr,link);
+				while(*buf && *buf!='}') buf++;
+				if(*buf =='}') buf++;
+				break;
+          } 
           break;
         }
 
