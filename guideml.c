@@ -2582,13 +2582,13 @@ if(!wb)
   param.bar   = defbar;
   param.retrace = NULL;
 
-	param.colours[0] = 0x000000;
-	param.colours[1] = 0xffffff;
-	param.colours[2] = 0x000000;
-	param.colours[3] = 0x4a8abd;
-	param.colours[4] = 0x000000;
-	param.colours[5] = 0xcfcfcf;
-	param.colours[6] = 0xffffff;
+	param.colours[0] = 0x000000; // text
+	param.colours[1] = 0xff4444; // shine
+	param.colours[2] = 0xcccccc; // shadow
+	param.colours[3] = 0x4a8abd; // fill
+	param.colours[4] = 0x000000; // fill text
+	param.colours[5] = 0xffffff; // background
+	param.colours[6] = 0x4444ff; // highlight
 
   if(args = (struct RDArgs *)ReadArgs(template,(LONG *)&param,NULL))
 	{
