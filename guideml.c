@@ -2874,7 +2874,7 @@ Flush:
 int wbmain(struct WBStartup *WBenchMsg)
 {
 struct WBArg *wbarg;
-	char i;
+	LONG i;
 	int olddir;
 int name = 0;
 
