@@ -1,0 +1,670 @@
+@database GuideML.guide
+@author "Chris Young"
+@(c) "© 2003-8 Unsatisfactory Software"
+@$VER: GuideML.guide 3.15 (21.06.2008)
+@smartwrap
+
+@node main "GuideML"
+@{b}GuideML 3.15@{ub}
+
+
+@{"Disclaimer  " link disclaimer} Read this first
+
+@{"Introduction" link intro} and requirements
+
+@{"Usage       " link usage}
+
+@{"Tooltypes   " link tooltypes} and command line arguments
+
+
+@{"History     " link history}
+
+@{"Known Bugs  " link bugs}
+
+@{"Contact     " link contact}
+
+@endnode
+
+@node disclaimer "Disclaimer"
+Use of this software ("GuideML") is at your own risk, with no warranty
+expressed or implied.  I will not accept responsibility for any damage,
+loss of data or other event caused directly or indirectly by this software.
+
+This archive is distributed under the GPL.  You can check the authenticity
+of the archive by comparing the PGP signature in the Aminet .readme against
+the archive.  My public key is available from
+http://www.unsatisfactorysoftware.co.uk/ftp/pgp-keys/chris.asc
+
+
+If you do not agree to the above you must delete this software and the
+distribution archive.  If you believe the archive has been tampered with
+please @{"contact me" link contact} as soon as possible.
+
+@endnode
+
+@node intro "Introduction"
+@{b}What is GuideML?@{ub}
+
+
+GuideML is an open source AmigaGuide to HTML conversion utility, originally
+written by Richard Körber and was picked up by me (Chris Young) a couple of
+years after Richard had stopped updating it.  At the time it was the only
+program that would convert AmigaGuide to HTML in a way similar to what I
+needed.  The bonus here being that it was open source, so I added a few
+functions that I needed and the rest, as they say, is history.
+
+
+@{b}Why GuideML?@{ub}
+
+
+It is the most flexible way to generate HTML from AmigaGuide, supports most
+AmigaGuide tags, and converts most AmigaGuides (including \@smartwrap guides)
+without problem.  The best thing to do is look at the
+@{"usage information" link usage} to see exactly what it can do.
+
+
+@{b}What are the requirements?@{ub}
+
+
+You need an Amiga running AmigaOS 3.5 or newer for the GUI.  You should still
+be able to use it from the command line on AmigaOS 2.04 but I haven't tried
+this.  The code is compiled for 68020.  If your
+machine does not meet the requirements, version 2.6 of GuideML should still
+be available on Aminet - http://www.aminet.net/text/hyper/guideml2.lha
+
+@endnode
+
+@node usage "Using GuideML"
+GuideML now has a GUI since v3.1, and the old command line interface is still
+available for compatibility/scripting purposes.  The command line options are
+identical to the @{"tooltypes" link tooltypes} so please check that section
+for further information.
+
+
+@{"Menu Options" link menu}
+
+@{"Convert Tab " link convert}
+
+@{"Options Tab " link options}
+
+@{"NavBar Tab " link navbar}
+
+@{"Extra Notes " link notes}
+
+@endnode
+
+@node menu "Menu Options"
+@{b}Project@{ub}
+
+
+@{fg fill}Save As...@{fg text} - Saves the current settings as a file that can be executed from
+the command line, or double-clicked on to be loaded back into GuideML.
+
+
+@{fg fill}About...@{fg text} - Shows some information about GuideML.
+
+
+@{fg fill}Quit@{fg text} - Exits from GuideML without prompting.
+
+
+@{b}Settings@{ub}
+
+
+@{fg fill}Save As Defaults@{fg text} - Saves the current settings as the defaults.
+
+@endnode
+
+@node convert "GuiML Convert Tab"
+@{fg fill}Input File@{fg text} - Click on the button for a file requester or
+type the path of the AmigaGuide database you want to convert.  This is the
+only required option.
+
+
+@{fg fill}Output Path@{fg text} - Select the path where you want the converted
+files to be saved.  NB: GuideML will overwrite any existing files with the same
+names, so it is recommended to select an empty directory as the output path.
+
+
+@{fg fill}Home URL@{fg text} - The URL for the Home button
+
+
+@{fg fill}Search URL@{fg text} - The URL for a Search button
+
+
+@{fg fill}CSS URL@{fg text} - The URL of a Cascading Style Sheet
+
+
+@{fg fill}Link Prefix@{fg text} - Text to add to the start of every link, this
+is useful if you want the pages to be loaded via a script, links to "main.html"
+could become something like "site.php?page=main.html"
+
+
+@{fg fill}Body@{fg text} - Text to add to the <body> tage of each page
+
+
+@{fg fill}HTML Header@{fg text} - A file containing HTML to add to the top
+of every converted page
+
+
+@{fg fill}HTML Footer@{fg text} - A file containing HTML to add to the bottom
+of every converted page
+
+
+@{fg fill}Convert@{fg text} - Start the conversion
+
+@endnode
+
+@node options "GuiML Options Tab"
+@{fg fill}Wrap Mode@{fg text} - The wrapping mode to use for the AmigaGuide
+file.  Auto will auto-detect, the other options will force GuideML into a
+particular mode.
+
+
+@{fg fill}Variable Width Font@{fg text} - Select to use a variable width font.
+Only operational if the AmigaGuide is wrapped.  Note that specifying \@{code}
+within an AmigaGuide will force a fixed-width font until \@{body} is reached.
+
+
+@{fg fill}Indent at@{fg text} - Specifies the threshold value where \@{lindent}
+will convert to <blockquote>.  A value of 0 will disable this feature.
+
+
+@{fg fill}MS-DOS Compatible Filenames@{fg text} - If selected, GuideML will
+use .htm instead of .html as file extension.
+
+
+@{fg fill}Do Not Generate HTML Headers@{fg text} - Stops GuideML from generating the HTML header and footer, <BODY> tags etc.  Useful if you have a server-side script that adds a standard site design around the text.
+
+
+@{fg fill}Single File HTML@{fg text} - Puts the entire AmigaGuide within a single HTML file.
+
+
+@{fg fill}Prepend external links with ../@{fg text} - Adds ../ to the beginning of external AmigaGuide links.  This enables multi-file AmigaGuides to be converted by converting each part into a directory named the same as the orignal file (in lowercase).
+
+
+@{fg fill}Number lines in HTML@{fg text} - Adds anchor links on each line of the HTML, to enable the links in AmigaGuides that reference specific line numbers to convert correctly (this may seriously increase the size of the generated HTML files, so do not use unless you need to).
+
+
+@{fg fill}Links@{fg text} - Specifies which links to convert, email, URLs
+or none.
+
+
+@{fg fill}Convert@{fg text} - Start the conversion.
+
+
+The other options on this page specify the colours to be used for AmigaGuide
+colour names.  These only appear on OS4, OS3 users can specify them in
+tooltypes.
+
+@endnode
+
+@node navbar "GuiML NavBar Tab"
+@{fg fill}Position@{fg text} - Specifies where the navigation bar should be 
+placed.
+
+
+@{fg fill}Mozilla Site Navigation Bar@{fg text} - Specifies whether a Mozilla
+compatible Site Navigation Bar should be available.  This can be switched on
+and off in Mozilla in one of the menus.
+
+
+@{fg fill}Style@{fg text} - Specifies whether the navigation bar should be
+text or image based.
+
+
+@{fg fill}Consistent Across Pages@{fg text} - Select to ensure the navigation
+bar contents are the same on every page.
+
+
+@{fg fill}Convert@{fg text} - Start the conversion.
+
+
+The other options on the page allow you to change the text used within the
+navigation bar.
+
+@endnode
+
+@node notes "Notes"
+@{b}Start page@{ub}
+
+
+Note that the start page for converted AmigaGuides is always main.html
+(or main.htm) rather than index.html.
+
+
+@{b}CSS (Cascading Style Sheets)@{ub}
+
+
+GuideML supports stylesheets to some extent from v2.x.  You can link an external style sheet to any
+generated HTML with the CSS keyword.  In addition, GuideML from 2.5 adds a 
+"class" attribute to the "font" tag generated when it encounters a 
+\@{fg amigaguide attribute within the guide.
+
+
+How this works is fairly simple.  If you use \@{fg shine}, then you need to
+add a style for "font.agshine" to the style sheet you specified with the CSS
+keyword.  This follows the same format for all colours - eg \@{fg fill} will
+inherit the attributes for "font.agfill".
+
+
+@{b}Wordwrapping features@{ub}
+
+
+In order so you understand the difference between the three options:
+
+
+In non-wrapped mode, GuideML simply dumps everything to a page in "preformatted" mode
+(<pre> tag)
+
+
+WORDWRAP puts a line break in at the end of each physical line, but does not include the preformatted tag.
+
+
+SMARTWRAP puts a line break in on empty lines only - therefore you need two blank lines
+for a single blank line to show up in the HTML.
+
+
+These should convert \@wordwrap and \@smartwrap accurately, and WORDWRAP may be useful
+for most other guides as well.
+
+
+Note that the little-known \@{par}, \@{line}, \@{code} and \@{body} commands can help with formatting
+especially \@smartwrapped guides.
+
+
+@endnode
+
+@node tooltypes "Tooltypes"
+GuideML's tooltypes and command line arguments are the same.  Anything
+marked with * is only available from the CLI.  The tooltypes only
+accept the longer forms of the arguments, and are fully editable using the
+@{"GUI" link usage} and @{"Save As Defaults" link menu}.  Items marked with
+^ are only available in tooltypes.
+
+
+@{code}
+USAGE:  FILE/A                  AmigaGuide file to be converted
+        TO/K                    Destination drawer for the html pages
+        URL=HOMEURL/K           URL accessed by the 'HOME' button
+        FINDURL=SEARCHURL/K     URL accessed by the 'SEARCH' button
+        PREV/K                  'PREV' button text/image
+        NEXT/K                  'NEXT' button text/image
+        INDEX/K                 'INDEX' button text/image
+        TOC/K                   'CONTENTS' button text/image
+        HELP/K                  'HELP' button text/image
+        RETRACE/K               'RETRACE' button text/image (displays only if specified)
+        HOME/K                  'HOME' button text/image
+        FIND=SEARCH/K           'SEARCH' button text/image
+        BAR/K                   Bar text between navigation buttons
+        BODY/K                  Addition to the body tag of every page
+      * VER=VERBATIM/S          List of created files
+        IMG=IMAGES/S            Create image navigation bar
+        FTR=FOOTER/S            Navigation bar also at end of page
+        LA=LINKADD/K            Text to add to the start of every link
+        NL=NOLINKS/S            Ignore internet links
+        NE=NOEMAIL/S            Ignore e-mail addresses
+      * NW=NOWARN/S             Don't show warnings
+        MSDOS/S                 Create MS-DOS filenames (*.htm)
+        SF=SINGLEFILE/S         Put all AmigaGuide nodes into a single HTML file (no LINKADD)
+        PARENTEXTLInKS/S        Adds ../ to the beginning of external AmigaGuide links
+        LN=NUMBERLINES          Adds line number refernces to the HTML
+        NONAVBAR/S              Do not create the HTML navigation bar
+        NOMOZNAV/S              Do not create Mozilla-compatible Site Navigation Bar
+        SHOWALL/S               Keep navbar consistent between pages
+      * HTMLHEAD/K              HTML to put in front of guide text
+        HTMLHEADF/K             File containing HTMLHEAD (overrides HTMLHEAD)
+      * HTMLFOOT/K              HTML to put underneath guide text
+        HTMLFOOTF/K             File containing HTMLFOOT (overrides HTMLFOOT)
+        NOHTML/S                Don't auto-generate HTML header or footer
+        CSS/K                   URL of Cascading Style Sheet to link to
+        WORDWRAP/S              Word-wraps text (converts @wordwrap)
+        SMARTWRAP/S             Smartwraps text (converts @smartwrap)
+        VARWIDTH/S              Do not use fixed width font (#?WRAP only)
+        NOAUTO/S                Do not auto-detect wrap mode
+        LINDENT/K/N             Threshold for \@{lindent} to convert to <blockquote>
+      ^ COLOURn                 Colour value in hex, where n is:
+                                0 = Text
+                                1 = Shine
+                                2 = Shadow
+                                3 = Fill
+                                4 = FillText
+                                5 = Background
+                                6 = Highlight
+
+@{body}
+
+@endnode
+
+@node history "History"
+Versions 1.x were written by Richard Körber.
+
+Versions 2.0 and up are updates by Chris Young.
+
+
+V3.15   » (21.06.2008)@{lindent 8}
+
+· It is now possible to blank out navbar labels to prevent certain links from being shown.
+
+· A tab between the node name and title was not being recognised as whitespace.
+
+· Macro arguments not enclosed in quotes would crash GuideML.
+
+· GuideML did not always pick up the line number in links.@{lindent 0}
+
+
+V3.14   » (10.05.2008)@{lindent 8}
+
+· Fixed various aspects of single file creation: line numbering, links to external documents, nodes with names which start with "main", tidy up of anchor names, now creates files called <guidename>.html in the specified directory instead of main.html.
+
+· Input file requester now has a hook function to detect AmigaGuide files instead of relying on the name only.
+
+· Fixed some memory leaks
+
+· Reversed the order the macro list is searched (local macros now get priority)
+
+· Fixed the NUMBERLINES tooltype@{lindent 0}
+
+
+V3.13   » (04.05.2008)@{lindent 8}
+
+· Added macro support.  AmigaGuide commands within macros will be translated to HTML as expected, and macros within macros are allowed, as are macros with arguments and both local and globally defined macros.  You can also use macros to replace AmigaGuide commands as per the AmigaGuide specification.
+
+· Added line number links support.  You need to enable adding line numbers to HTML files with the NUMBERLINES/Number lines in HTML option as it makes the files bigger for no benefit if you don't use line number references.
+
+· \@font is now supported (as global and local attribute).
+
+· Added \@{amigaguide} command.
+
+· Saving a project now uses a def_guideml icon if found, and uses the short forms of the command line arguments where available.
+
+· Fixed "prepend ../" option, which wasn't working in all cases.@{lindent 0}
+
+
+V3.12   » (30.04.2008)@{lindent 8}
+
+· Added "Prepend external links with ../" option to enable multi-file AmigaGuides to be converted, by converting each file into a directory named the same as the orignal file in lowercase.@{lindent 0}
+
+
+V3.11   » (15.10.2006)@{lindent 8}
+
+· Moved the navigation bar options in the GUI to their own tab, to give space on the options tab for (OS4 only) colour selection gadgets.
+
+· body tag now automatically includes background and text colours unless some body tags are manually specified.
+
+· \@{PAR} now converts to <br>
+
+· HTML tags are now closed properly at the end of each node/page
+
+· Added support for \@{lindent n}
+
+· Too few characters were being checked on some AmigaGuide attributes.
+
+· GuideML now assumes that the BAR tooltype has a leading space.
+
+· The window is now an AppWindow that you can drop AmigaGuides onto.@{lindent 0}
+
+
+V3.10   » (28.09.2006)@{lindent 8}
+
+· Modified the source code so it compiles with GCC4 and vbcc.  OS4/PPC version is now compiled with GCC4, OS3/68k version is new compiled with vbcc (instead of StormC)
+
+· Fixed a bug where the contents link pointed to "l" unless "use MS-DOS compatible filenames" was enabled (only affected the 68k version)
+
+· Fixed the blank error requester which appeared if image links where enabled
+
+· If GuideML is run from the command line, the errors now appear in that window again, instead of popping up
+
+· Changed the link images to Martin Merz's ones from AISS
+
+· OS3 and OS4 versions are now in the same archive@{lindent 0}
+
+
+V3.9    » (17.10.2004)@{lindent 8}
+
+· Fixed a bug that could cause a crash if converting twice
+
+· Set the file request string gadgets to read-only@{lindent 0}
+
+
+V3.8    » (25.09.2004)@{lindent 8}
+
+· Removed some Enforcer hits
+
+· Now works again from the CLI (oops)
+
+· Other minor bug-fixes@{lindent 0}
+
+
+V3.7    » (04.09.2004)@{lindent 8}
+
+· Fixed @title parsing, it now reads the title correctly in all cases@{lindent 0}
+
+
+V3.6    » (30.08.2004)@{lindent 8}
+
+· Added SINGLEFILE option (by popular request!)
+
+· All errors really do now bring up a requester when run from WB
+
+· Fixed NOHTML so it now includes any specified HTML footer
+
+· OS4 compile only@{lindent 0}
+
+
+V3.5    » (15.08.2004)@{lindent 8}
+
+· Added LINKADD and NOHTML options
+
+· Stopped GuideML from popping up in a console window when run from WB
+
+· All errors now bring up a requester when run from WB
+
+· OS4 compile only@{lindent 0}
+
+
+V3.4    » (07.08.2004)@{lindent 8}
+
+· OS4 specific source code changes@{lindent 0}
+
+
+V3.3    » (08.02.2003)@{lindent 8}
+
+· Bug fix: î was being translated to â
+
+· Bug fix: Link line numbers were being tagged to the end of the filename@{lindent 0}
+
+
+V3.2    » (04.01.2003)@{lindent 8}
+
+· Added \@{jcenter}, \@{jleft}, \@{jright}@{lindent 0}
+
+
+V3.1    » (03.01.2003)@{lindent 8}
+
+· Added ReAction GUI (known affectionately as GuiML)
+
+· Rewrote the AmigaGuide
+
+· Now puts the HTML header text @{u}above@{uu} the navigation bar@{lindent 0}
+
+
+
+V2.6    » (31.08.2003)@{lindent 8}
+
+· Added SHOWALL, RETRACE, HELP, NOMOZNAV options
+
+· Now adds a Mozilla Site Navigation Bar by default
+
+· Changed the default navbar names to their AmigaGuide equivalents
+
+· Bug fix: Now supports node-specific \@index@{lindent 0}
+
+
+
+V2.5    » (12.04.2003)@{lindent 8}
+
+· Added CSS classes to font tags resulting from converted \@{fg xxxx} attributes (see @{"usage" link Usage})
+
+· Bug fix: no longer gives too many double-quotes in the meta tag headers
+
+· Bug fix: leaves "&" alone for imported HTMLHEADF/HTMLFOOTF@{lindent 0}
+
+
+
+V2.4    » (20.03.2003)@{lindent 8}
+
+· Added support for \@{code}, \@{body}, \@{line}, \@{par} and \@{plain}
+
+· Now recognises four-character TLDs for email addresses
+
+· Added HTMLHEADF and HTMLFOOTF for support of long headers or footers (up to 4K)@{lindent 0}
+
+
+
+V2.3    » (29.07.2001)@{lindent 8}
+
+· Auto-detection of \@wordwrap and \@smartwrap
+
+· Not sure what else, it was nearly two years ago and this version was never released.@{lindent 0}
+
+
+
+V2.2    » (26.03.01)@{lindent 8}
+
+· Added WORDWRAP (\@wordwrap support), SMARTWRAP (\@smartwrap support) and VARWIDTH options.@{lindent 0}
+
+
+
+V2.1    » (17.03.01)@{lindent 8}
+
+· Added CSS option@{lindent 0}
+
+
+
+V2.0    » (16.03.01)@{lindent 8}
+
+· Added NONAVBAR, HTMLHEAD and HTMLFOOT options.
+
+· Bumped version number as GuideML is no longer maintained by Richard.
+
+· Not released - for my use only.@{lindent 0}
+
+
+
+V1.6    » (26. 4.98)@{lindent 8}
+
+· Support of MS-DOS suffix (.htm) using the MSDOS switch.
+
+· @{"Sourcecode" link Source} is included under GNU licence.@{lindent 0}
+
+
+
+V1.5    » (26. 9.97)@{lindent 8}
+
+· Bugfix: two entities were spelled wrong (&plusmin; and &ixcl;)
+
+· AmigaGuide links with line numbers don't lead to bad HTML links any more. (The line number is still ignored!)
+
+· Did some minor tab workarounds@{lindent 0}
+
+
+
+V1.4    » (20. 7.97)@{lindent 8}
+
+· Bugfix: had trouble when e-mail addresses ended up with an AmigaGuide command [Michael Schulz]
+
+· Generates some <meta>@{lindent 0}
+
+
+
+V1.3    » ( 3. 7.97)@{lindent 8}
+
+· Bugfix: some internet links ended up wrong...
+
+· '-' in e-mail addresses allowed now
+
+· Minor improvement of the built-in "home" icon
+
+· Now also recognizes "https://" and web links starting with "www."@{lindent 0}
+
+
+
+V1.2    » (24. 4.97)@{lindent 8}
+
+· Bugfix: TO also changed the source file path
+
+· Now only these images are saved which are also used in the HTML files
+
+· Removed the silly 500 chars internet link limit (and reduced stack usage as a side effect ;)
+
+· Shows warnings (suppressable)
+
+· Now also handles non-convertable link types (like RXS)@{lindent 0}
+
+
+
+V1.1    » (14. 4.97)@{lindent 8}
+
+· Bugfix: forgot $VER string
+
+· Now also supports \@{FG} command
+
+· Recognizes \\\@
+
+· Internet (http, ftp, mailto, ...) link detection
+
+· E-Mail address detection
+
+· Added keywords TO, IMAGES, BODY, NOLINKS, NOEMAIL, FOOTER
+
+· Saves a free set of navigation images
+
+· Footer navigation bar available
+
+· Now you can even feed Umlauts in shell parameters
+
+· Reworked documentation@{lindent 0}
+
+
+
+V1.0    » (28. 3.97) first public release@{lindent 8}
+
+· converts AmigaGuide into HTML
+
+
+@endnode
+
+@node bugs "Known Bugs"
+* The "Save As..." routine sometimes crashes when writing icon data, this may
+also affect Save As Default. (not seen this under OS4, so may be fixed)
+
+
+* GuideML assumes that the bar tooltype contains a single leading space.
+
+
+* AmigaGuides with very long lines might crash GuideML, as may broken files (mismatched quotes, brackets, etc) or AmigaGuides with recursive macros :)
+
+
+* External links to non-guide files are not converted properly.
+@endnode
+
+
+
+@node contact "Contact Information"
+GuideML was written originally by Richard Körber - http://www.shredzone.de
+
+
+Chris Young unofficially took over the development of this program in 2001
+and has been maintaining it ever since.
+
+
+Please email me at chris@unsatisfactorysoftware.co.uk with any comments or
+suggestions or visit http://www.unsatisfactorysoftware.co.uk
+
+
+The GuideML_OS4 icon in this package was drawn by Martin Merz.  The toolbar
+icons are part of AISS.  The other icons are older default GlowIcons to
+ensure they are viewable on OS3.5.  There is a proper OS4 drawer and icon
+package on http://www.masonicons.de that you may like to replace these with.
+
+@endnode

@@ -1,0 +1,18 @@
+VERSION		EQU	3
+REVISION	EQU	15
+
+DATE	MACRO
+		dc.b '21.6.2008'
+		ENDM
+
+VERS	MACRO
+		dc.b 'GuideML 3.15'
+		ENDM
+
+VSTRING	MACRO
+		dc.b 'GuideML 3.15 (21.6.2008)',13,10,0
+		ENDM
+
+VERSTAG	MACRO
+		dc.b 0,'$VER: GuideML 3.15 (21.6.2008)',0
+		ENDM

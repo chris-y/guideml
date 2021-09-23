@@ -50,3 +50,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Executables
+GuideML_OS3
+GuideML_OS4

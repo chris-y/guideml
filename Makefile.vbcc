@@ -1,0 +1,14 @@
+CC := vc +aos68k
+CFLAGS := -c99
+LIBS := -lauto -lamiga
+
+OBJS := guideml.o
+DEPS := GuideML_rev.h
+
+all: GuideML_OS3
+
+%.o: %.c $(DEPS)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+GuideML_OS3: $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
