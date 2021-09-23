@@ -158,10 +158,13 @@ struct Library *SliderBase;
 struct Library *GetFileBase;
 struct Library *IconBase;
 
-#if defined (__amigaos4__) && !defined(__USE_INLINE__)
-#define GetColorObject      IIntuition->NewObject( IGetColor->GETCOLOR_GetClass(), NULL
+#ifdef __amigaos4__
+  #define CurrentDir SetCurrentDir
+  #if defined(OBSOLETESeek)
+    #define Seek OBSOLETESeek
+  #endif
 #else
-#define GetColorObject      NewObject( GETCOLOR_GetClass(), NULL
+  #define GetColorObject      NewObject( GETCOLOR_GetClass(), NULL
 #endif
 
 void err(char *,char *,int);
