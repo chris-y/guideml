@@ -269,7 +269,7 @@ struct Parameter                          /* Structure of Shell parameters */
   LONG   dotdotslash;
   LONG   numberlines;
   LONG   nonavbar;
-  LONG   nomoznav;
+  LONG   moznav;
   LONG   showall;
   STRPTR htmltoptxt;
   STRPTR htmlheadf;
@@ -2065,7 +2065,7 @@ if(((param.singlefile & firstpage) | (!param.singlefile)) & (!param.nohtml))
 			if(-1 == FPuts(tfh,"\" type=\"text/css\">")) goto ErrorFile;
 		}
 
-		if(!param.nomoznav)
+		if(!param.moznav)
 		{
       if(!MozNavBar(tfh,enode)) goto ErrorFile;
       }
@@ -2591,7 +2591,7 @@ int main(int argc, char **argv)
 {
 
   struct RDArgs *args;
-  static char template[] = "FILE/A,TO/K,URL=HOMEURL/K,FINDURL=SEARCHURL/K,PREV/K,NEXT/K,INDEX/K,TOC/K,HELP/K,RETRACE/K,HOME/K,FIND=SEARCH/K,BAR/K,BODY/K,VER=VERBATIM/S,IMG=IMAGES/S,FTR=FOOTER/S,LA=LINKADD/K,NL=NOLINKS/S,NE=NOEMAIL/S,NW=NOWARN/S,MSDOS/S,SF=SINGLEFILE/S,PEL=PARENTEXTLINKS/S,LN=NUMBERLINES/S,NONAVBAR/S,NOMOZNAV/S,SHOWALL/S,HTMLHEAD/K,HTMLHEADF/K,HTMLFOOT/K,HTMLFOOTF/K,NOHTML/S,CSS/K,WORDWRAP/S,SMARTWRAP/S,VARWIDTH/S,NOAUTO/S,LINDENT/K/N";
+  static char template[] = "FILE/A,TO/K,URL=HOMEURL/K,FINDURL=SEARCHURL/K,PREV/K,NEXT/K,INDEX/K,TOC/K,HELP/K,RETRACE/K,HOME/K,FIND=SEARCH/K,BAR/K,BODY/K,VER=VERBATIM/S,IMG=IMAGES/S,FTR=FOOTER/S,LA=LINKADD/K,NL=NOLINKS/S,NE=NOEMAIL/S,NW=NOWARN/S,MSDOS/S,SF=SINGLEFILE/S,PEL=PARENTEXTLINKS/S,LN=NUMBERLINES/S,NONAVBAR/S,MOZNAV/S,SHOWALL/S,HTMLHEAD/K,HTMLHEADF/K,HTMLFOOT/K,HTMLFOOTF/K,NOHTML/S,CSS/K,WORDWRAP/S,SMARTWRAP/S,VARWIDTH/S,NOAUTO/S,LINDENT/K/N";
   BPTR fh;
   BPTR hhf;
   BPTR oldlock = (BPTR)NULL;
@@ -2851,7 +2851,7 @@ Flush:
            "\tPEL=PARENTEXTLINKS/S\t\tPrepends ../ to external AmigaGuide links\n"
            "\tLN=NUMBERLINES/S\t\tEnables line-numbered links to work\n"
            "\tNONAVBAR/S\t\tDo not create the HTML navigation bar\n"
-           "\tNOMOZNAV/S\t\tDo not create Mozilla-compatible Site Navigation Bar\n"
+           "\tMOZNAV/S\t\tCreate Mozilla-compatible Site Navigation Bar (obsolete)\n"
            "\tSHOWALL/S\t\tKeep navbar consistent between pages\n"
            "\tHTMLHEAD/K\t\tHTML to put in front of guide text\n"
            "\tHTMLHEADF/K\t\tFile containing HTMLHEAD (overrides HTMLHEAD)\n"
@@ -3319,7 +3319,7 @@ void gettooltypes(struct WBArg *wbarg)
 		if(s = (char *)FindToolType(toolarray,"NOEMAIL")) param.noemail = TRUE;
 		if(s = (char *)FindToolType(toolarray,"MSDOS")) param.msdos = TRUE;
 		if(s = (char *)FindToolType(toolarray,"NONAVBAR")) param.nonavbar = TRUE;
-		if(s = (char *)FindToolType(toolarray,"NOMOZNAV")) param.nomoznav = TRUE;
+		if(s = (char *)FindToolType(toolarray,"MOZNAV")) param.moznav = TRUE;
 		if(s = (char *)FindToolType(toolarray,"SHOWALL")) param.showall = TRUE;
 		if(s = (char *)FindToolType(toolarray,"VARWIDTH")) param.varwidth = TRUE;
 		if(s = (char *)FindToolType(toolarray,"NOAUTO")) param.noauto = TRUE;
@@ -3382,8 +3382,8 @@ void savetooltypes(char *fname,int def)
 								else newtooltypes[3] = "(VARWIDTH)";
 			if(param.showall) newtooltypes[4] = "SHOWALL";
 								else newtooltypes[4] = "(SHOWALL)";
-			if(param.nomoznav) newtooltypes[5] = "NOMOZNAV";
-								else newtooltypes[5] = "(NOMOZNAV)";
+			if(param.moznav) newtooltypes[5] = "MOZNAV";
+								else newtooltypes[5] = "(MOZNAV)";
 			if(param.nonavbar) newtooltypes[6] = "NONAVBAR";
 								else newtooltypes[6] = "(NONAVBAR)";
 			if(param.msdos) newtooltypes[7] = "MSDOS";
@@ -3716,7 +3716,7 @@ int saveas()
 	if(param.dotdotslash) strcat(guidemlcmd,"PEL ");
 	if(param.numberlines) strcat(guidemlcmd,"LN ");
 	if(param.nonavbar) strcat(guidemlcmd,"NONAVBAR ");
-	if(param.nomoznav) strcat(guidemlcmd,"NOMOZNAV ");
+	if(param.moznav) strcat(guidemlcmd,"MOZNAV ");
 	if(param.showall) strcat(guidemlcmd,"SHOWALL ");
 	if(param.wordwrap) strcat(guidemlcmd,"WORDWRAP ");
 	if(param.smartwrap) strcat(guidemlcmd,"SMARTWRAP ");
@@ -4265,7 +4265,7 @@ if(scrn = LockPubScreen(NULL)) UnlockPubScreen(NULL,scrn);
       	              					GA_ID, GID_MOZNAV,
          	           					GA_RelVerify, TRUE,
          	           					GA_Text,"_Mozilla site navigation bar",
-  				      		            GA_Selected,param.nomoznav+1,
+  				      		            GA_Selected,param.moznav,
             					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
             	    					CheckBoxEnd,
 		                				CHILD_NominalSize, TRUE,
@@ -4743,7 +4743,7 @@ if(scrn = LockPubScreen(NULL)) UnlockPubScreen(NULL,scrn);
                                         break;
 
                                         case GID_MOZNAV:
-                                        	param.nomoznav=code+1;
+                                        	param.moznav=code;
                                         break;
 
                                         case GID_SHOWALL:
