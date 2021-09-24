@@ -349,6 +349,7 @@ struct LinkStr                            /* Link bar alternative texts */
 
 char Index[100];                          /* Index page name */
 char Help[100];
+char TOC[100];
 
 char temp[300];
 
@@ -1242,43 +1243,37 @@ LONG NavBar(BPTR tfh, struct Entry *enode)
 		before = 1;
     }
 
-
 	if(param.toc)
 	{
-	    if(enode->Count)            // main page does not have a TOC link
-    	{
-      		if(before) if(-1 == MyPuts(tfh,param.bar)) break;
-
-			if(param.linkadd)
-			{
-				strcpy(main,param.linkadd);
-				strcat(main,"main.htm");
-			}
-			else
-			{
-				strcpy(main,"main.htm");
-			}
-
-	      	if(param.msdos)
-    	  	{
-        		if(-1 == FPrintf(tfh,"<a href=\"%s\">",(*enode->TOC ? enode->TOC : main))) break;
-      		}
-      		else
-      		{
-				strcat(main,"l");
-        		if(-1 == FPrintf(tfh,"<a href=\"%s\">",(*enode->TOC ? enode->TOC : main))) break;
-      		}
-      		if(-1 == MyPuts(tfh,param.toc)) break;
-      		if(-1 == FPuts(tfh,"</a>")) break;
-      		before = 1;
-    	}
-    	else if(param.showall)
-    	{
-      		if(before) if(-1 == MyPuts(tfh,param.bar)) break;
-      		if(-1 == MyPuts(tfh,param.toc)) break;
-    		before = 1;
-	    }
-	}
+		if(enode->Count)  {          // main page does not have a TOC link
+	    	if(*enode->TOC)
+    		{
+      			if(before) if(-1 == MyPuts(tfh,param.bar)) break;
+      			if(-1 == FPrintf(tfh,"<a href=\"%s\">",enode->TOC)) break;
+      			if(-1 == MyPuts(tfh,param.toc)) break;
+      			if(-1 == FPuts(tfh,"</a>")) break;
+      			before = 1;
+    		}
+    		else if(*TOC)
+    		{
+      			if(before) if(-1 == MyPuts(tfh,param.bar)) break;
+      			if(-1 == FPrintf(tfh,"<a href=\"%s\">",TOC)) break;
+      			if(-1 == MyPuts(tfh,param.toc)) break;
+      			if(-1 == FPuts(tfh,"</a>")) break;
+      			before = 1;
+    		}
+    		else if(param.showall)
+    		{
+      			if(before) if(-1 == MyPuts(tfh,param.bar)) break;
+      			if(-1 == MyPuts(tfh,param.toc)) break;
+      			before = 1;
+    		}
+		} else if(param.showall) {
+      			if(before) if(-1 == MyPuts(tfh,param.bar)) break;
+      			if(-1 == MyPuts(tfh,param.toc)) break;
+      			before = 1;
+		}
+    }
 
 	if(param.index)
 	{
@@ -2379,6 +2374,8 @@ LONG PreScan(BPTR fh)
     err(temp,"OK",0);
     goto Error;
   }
+
+  CopyLink("main\n", TOC);
 
    /* Search for commands */
   for(;;)
