@@ -546,7 +546,7 @@ LONG SaveImg(STRPTR file, UBYTE *data, ULONG len)
 
   if(lock = Open(file,MODE_NEWFILE))      // Open the image file
   {
-    if(-1 == Write(lock,data,len))        // Write the image
+    if(Write(lock, (LONG)data, len) == -1)        // Write the image
     {
       Close(lock);                        // Write failed, so
       return(0);                          // return without success
