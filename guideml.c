@@ -160,9 +160,6 @@ struct Library *IconBase;
 
 #ifdef __amigaos4__
   #define CurrentDir SetCurrentDir
-  #if defined(OBSOLETESeek)
-    #define Seek OBSOLETESeek
-  #endif
 #else
   #define GetColorObject      NewObject( GETCOLOR_GetClass(), NULL
 #endif
@@ -466,6 +463,17 @@ STRPTR cssclass[] =
 char *macro[20];
 char *macrotext[20];
 int macros=0;
+
+int32 seek64(BPTR file, int64 posn, int32 mode)
+{
+#ifdef __amigaos4__
+	return ChangeFilePosition(file, posn, mode);	
+#else
+	int32 oldposn = Seek(file, (int32)posn, mode);
+	if(oldposn == -1) return 0;
+		else return 1;
+#endif
+}
 
 #ifndef __amigaos4__
 char *strlwr(string)
@@ -1982,7 +1990,7 @@ LONG Convert(BPTR fh)
 
 		if(param.singlefile)
 		{
-			Seek(tfh,0,OFFSET_END);
+			seek64(tfh, 0, OFFSET_END);
 		}
 
 
@@ -2287,7 +2295,7 @@ Done:
 
     if(tfh = Open(filename,MODE_OLDFILE))
     {
-		Seek(tfh,0,OFFSET_END);
+		seek64(tfh, 0, OFFSET_END);
 
       if(param.footer)
       {
@@ -2753,7 +2761,7 @@ if(ok)
         Close(fh);
         goto Flush;
       }
-      Seek(fh,0,OFFSET_BEGINNING);
+      seek64(fh, 0, OFFSET_BEGINNING);
       if(!Convert(fh))
       {
 				strcpy(temp,"**ERROR: Conversion failed.");
