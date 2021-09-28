@@ -3371,17 +3371,17 @@ void savetooltypes(char *fname,int def)
 	char tttmp16[100];
 	char tttmp17[100];
 	char tttmp18[100];
-	char defaulttool[] = "guideml\0";
+	char *defaulttool = "guideml\0";
 
-//char *fname="progdir:guideml\0";
+	if(!def) {
+		dobj=GetIconTags(fname,ICONGETA_FailIfUnavailable,FALSE,
+							ICONGETA_GetDefaultName,defaulttool,
+							ICONGETA_GetDefaultType,WBPROJECT,TAG_DONE);
+	} else {
+		dobj=GetIconTagList(fname, NULL);
+	}
 
-// if((wbarg->wa_Lock) && (wbarg->wa_Name)) olddir=CurrentDir(wbarg->wa_Lock);
-
-//	if((*wbarg->wa_Name) && (dobj=GetDiskObject(wbarg->wa_Name)))
-	if(dobj=GetIconTags(fname,ICONGETA_FailIfUnavailable,FALSE,
-							ICONGETA_GetDefaultName,"guideml",
-							ICONGETA_GetDefaultType,WBPROJECT,NULL))
-		{
+	if(dobj) {
 			oldtooltypes = (UBYTE **)dobj->do_ToolTypes;
 			olddefaulttool = dobj->do_DefaultTool;
 			oldtype = dobj->do_Type;
