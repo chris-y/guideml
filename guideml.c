@@ -1206,6 +1206,20 @@ if((param.smartwrap) && (strlen(buf)<2))
           if(agpens[i]) break;
         }
 
+        if(!Strnicmp(buf,"img ",4))         // @{img ...}
+        {
+          if(-1 == FPuts(fh,"<img src=\"")) return(0);
+          buf += 4;
+
+          while(*buf != '}') {
+	          if(-1 == MyPutCh(fh,*buf)) return(0);
+    	      buf++; 
+          }
+
+          if(-1 == FPuts(fh,"\">")) return(0);
+
+        }
+
         while(*buf && *buf!='}') buf++;   // Skip an unknown command!
         buf++;
         break;
