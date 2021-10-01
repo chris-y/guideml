@@ -470,12 +470,12 @@ int macros=0;
 /* <OS4 needs this to be set (OS4 is happy with NULL) */
 struct Locale *locale = NULL;
 
-int32 seek64(BPTR file, int64 posn, int32 mode)
+long seek64(BPTR file, int64 posn, int32 mode)
 {
 #ifdef __amigaos4__
 	return ChangeFilePosition(file, posn, mode);	
 #else
-	int32 oldposn = Seek(file, (int32)posn, mode);
+	long oldposn = Seek(file, (long)posn, mode);
 	if(oldposn == -1) return 0;
 		else return 1;
 #endif
