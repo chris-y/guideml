@@ -470,7 +470,12 @@ int macros=0;
 /* <OS4 needs this to be set (OS4 is happy with NULL) */
 struct Locale *locale = NULL;
 
-long seek64(BPTR file, int64 posn, int32 mode)
+#ifndef __amigaos4__
+typedef   signed long  int32;
+typedef   signed long long  int64;
+#endif
+
+int32 seek64(BPTR file, int64 posn, int32 mode)
 {
 #ifdef __amigaos4__
 	return ChangeFilePosition(file, posn, mode);	
@@ -1720,7 +1725,10 @@ LONG Convert(BPTR fh)
   do
   {
     linenr++;
-    if(FGets(fh,buffer,LINELEN) == NULL) goto Done;
+    if(FGets(fh,buffer,LINELEN) == NULL) {
+	   if((!wb) && (IoErr() != 0)) printf("IO Error: %ld\n", IoErr());
+	   goto Done;
+	}
 
    if(!param.noauto)
    {
