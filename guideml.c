@@ -52,6 +52,7 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/gadtools.h>
+#include <proto/locale.h>
 #include <proto/utility.h>
 #include <exec/lists.h>
 #include <exec/nodes.h>
@@ -77,7 +78,6 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 #include <proto/slider.h>
 // #include <clib/integer_protos.h>
 // #include <clib/listbrowser_protos.h>
-#include <proto/gadtools.h>
 #include <proto/icon.h>
 
 #ifdef __amigaos4__
@@ -115,11 +115,13 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 #define LINELEN (1024)                    /* Maximum length of a line */
 
 struct Library *GadToolsBase;
+struct Library *LocaleBase;
 struct Library *WorkbenchBase;
 
 #ifdef __amigaos4__
 struct Library *GetColorBase;
 struct GadToolsIFace *IGadTools;
+struct LocaleIFace *ILocale;
 struct UtilityIFace *IUtility;
 struct IntuitionIFace *IIntuition;
 struct WorkbenchIFace *IWorkbench;
@@ -465,6 +467,9 @@ char *macro[20];
 char *macrotext[20];
 int macros=0;
 
+/* <OS4 needs this to be set (OS4 is happy with NULL) */
+struct Locale *locale = NULL;
+
 int32 seek64(BPTR file, int64 posn, int32 mode)
 {
 #ifdef __amigaos4__
@@ -476,18 +481,18 @@ int32 seek64(BPTR file, int64 posn, int32 mode)
 #endif
 }
 
-#ifndef __amigaos4__
-char *strlwr(string)
+char *mystrlwr(string)
 unsigned char *string;
 {
     unsigned char *p=string;
 
-    while ((*p = tolower(*p) ) != '\0') {
+    while ((*p = ConvToLower(locale,*p) ) != '\0') {
         ++p;
     }
     return(string);
 }
 
+#ifndef __amigaos4__
 char *strdup(const char *old)
 {
         char *t = malloc(strlen(old)+1);
@@ -495,7 +500,6 @@ char *strdup(const char *old)
                 strcpy(t, old);
         return t;
 }
-
 #endif
 
 #ifndef __amigaos4__
@@ -605,6 +609,8 @@ LONG SaveImages(void)
 void CopyLink(STRPTR link, STRPTR var)
 {
   char ch;
+  char *orig_var = var;
+  char strconvtmp[100];
 	char *tmp=NULL;
 
   var[0] = '\0';                          // Init
@@ -629,7 +635,6 @@ if(param.dotdotslash && !param.singlefile && strchr(link,'/'))
     while((ch = *link++)!=' ' && ch!='\n')
     {
       if(ch==':') ch='/'; // colon to slash again
-      if(ch>='A' && ch<='Z') ch+=32; // upper to lower again
       *var++ = ch;
     }
   }
@@ -651,7 +656,6 @@ if(param.dotdotslash && !param.singlefile && strchr(link,'/'))
 
       if(ch==' ') ch = '_'; // space converts to underscore
       if(ch==':') ch = '/'; // colon converts to slash
-      if(ch>='A' && ch<='Z') ch+=32; // uppercase converts to lowercase
       *var++ = ch;
     }
   }
@@ -665,6 +669,10 @@ if(param.dotdotslash && !param.singlefile && strchr(link,'/'))
   		if(!param.msdos) *var++ = 'l';
 	}
   *var = '\0';
+
+  StrConvert(locale, orig_var, strconvtmp, 100, SC_COLLATE1);
+  mystrlwr(strconvtmp);
+  strcpy(orig_var, strconvtmp);
 }
 //<
 //> MyPutCh()
@@ -738,7 +746,7 @@ LONG MyPutHex(BPTR fh, ULONG num)
 LONG ConvLine(BPTR fh, STRPTR buf, ULONG linenr,ULONG nodelinenr,STRPTR filename)
 {
   unsigned char ch;
-  char linkstr[100];
+  char linkstr[100], linkstr2[100];
   register UWORD dolink  = !param.nolink;
   register UWORD doemail = !param.noemail;
   ULONG linkline;
@@ -923,7 +931,6 @@ if((param.smartwrap) && (strlen(buf)<2))
             ch = *link++;
             if(ch=='\"' && linkquot) break;
             if(ch==' ' && !linkquot) break;
-            if(ch>='A' && ch<='Z') ch+=32;
             linkstr[linkpos++] = (ch==' ' || ch==':' ? '_' : ch);
           }
 
@@ -947,6 +954,11 @@ if((param.smartwrap) && (strlen(buf)<2))
           linkstr[linkpos] = '\0';
           if(!*link) return(0);
           link++;
+
+          StrConvert(locale, linkstr, linkstr2, 100, SC_COLLATE1);
+          mystrlwr(linkstr2);
+          strcpy(linkstr, linkstr2);
+
           if(-1 == FPuts(fh,"<a href=\"")) return(0);
 
 			if(param.singlefile && strchr(linkstr,'/'))
@@ -1950,9 +1962,8 @@ LONG Convert(BPTR fh)
       *++line = '\0';               // terminate the line
     }
 
-    strlwr(node);                   // node name to lowercase
-
-	strcpy(nodename,node);
+    StrConvert(locale, node, nodename, 100, SC_COLLATE1);
+    mystrlwr(nodename);                   // node name to lowercase
 
 	if(param.singlefile)
 	{
@@ -1965,7 +1976,7 @@ LONG Convert(BPTR fh)
 			mode = MODE_OLDFILE;
 		}
 
-		strlwr(param.from);
+		mystrlwr(param.from);
 		strcpy(filename,FilePart(param.from));
 	    if(param.msdos)
     	{
@@ -2628,9 +2639,21 @@ STRPTR oldlinkadd;
 
 #endif
 
+	if((LocaleBase = OpenLibrary("locale.library",38))==0)
+		{
+    				strcpy(temp,"Unable to open locale.library v38");
+ err(temp,"OK",20);
+		}
+#ifdef __amigaos4__
+		else
+		{
+			ILocale=(struct GadToolsIFace *)GetInterface(LocaleBase,"main",1,NULL);
+		}
+#endif
 
    if(0 == argc) return(wbmain((struct WBStartup *)argv));
 
+	locale = OpenLocale(NULL);
 
 
   NewList((struct List *)&entries);
@@ -4974,6 +4997,16 @@ void cleanup(int fail)
 	if(tthtmlheadf) FreeMem(tthtmlheadf,strlen(tthtmlheadf)+1);
 	if(tthtmlfootf) FreeMem(tthtmlfootf,strlen(tthtmlfootf)+1);
 	if(ttcss) FreeMem(ttcss,strlen(ttcss)+1);
+
+	if(LocaleBase) {
+		CloseLocale(locale);
+
+#ifdef __amigaos4__
+		DropInterface((struct Interface *)ILocale);
+#endif
+
+		CloseLibrary(LocaleBase);
+	}
 
 if(GadToolsBase)
 {
