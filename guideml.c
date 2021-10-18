@@ -10,7 +10,7 @@
 **
 ** Updated 2001-2008 by Chris Young
 ** chris@unsatisfactorysoftware.co.uk
-** http://www.unsatisfactorysoftware.co.uk
+** https://www.unsatisfactorysoftware.co.uk
 ***************************************************************/
 /* to compile:
 stack 500000
@@ -138,12 +138,11 @@ struct ButtonIFace *IButton;
 struct LabelIFace *ILabel;
 struct CheckBoxIFace *ICheckBox;
 struct AslIFace *IAsl;
-struct Library *DOSBase;
+//struct Library *DOSBase;
 #else
 struct Library *UtilityBase = NULL;
 #endif
 
-//struct Library *DOSBase;
 struct Library *AslBase;
 struct Library *IntuitionBase;
 struct Library *WindowBase;
@@ -1529,7 +1528,7 @@ LONG MozNavBar(BPTR tfh, struct Entry *enode)
       if(-1 == FPrintf(tfh,"<link rel=\"search\" href=\"%s\" title=\"%s\" />\n",param.findurl,textlabs.find)) break;
     }
 
-      if(-1 == FPuts(tfh,"<link rel=\"GuideML\" href=\"http://www.unsatisfactorysoftware.co.uk/\" title=\"Unsatisfactory Software\" />\n")) break;
+      if(-1 == FPuts(tfh,"<link rel=\"GuideML\" href=\"https://www.unsatisfactorysoftware.co.uk/\" title=\"Unsatisfactory Software\" />\n")) break;
 
 
 //    if(-1 == FPutC(tfh,'\n')) break;
@@ -2032,7 +2031,7 @@ if(((param.singlefile & firstpage) | (!param.singlefile)) & (!param.nohtml))
       if(-1 == FPuts(tfh,"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"\n\"http://www.w3.org/TR/html4/loose.dtd\">\n<html>\n<head>\n<title>")) goto ErrorFile;
       if(-1 == MyPuts(tfh,title)) goto ErrorFile;
       if(-1 == FPuts(tfh,"</title>\n"
-                         "<meta name=\"Generator\" content=\"" VERS " (http://www.unsatisfactorysoftware.co.uk/guideml/)\">\n"
+                         "<meta name=\"Generator\" content=\"" VERS " (https://www.unsatisfactorysoftware.co.uk/guideml/)\">\n"
                          "<meta http-equiv=\"Content-Type\" content=\"text/html\">\n")) goto ErrorFile;
 		// start custom meta
 		if(strlen(copyright) > 2)
@@ -2289,7 +2288,7 @@ if(((param.singlefile & firstpage) | (!param.singlefile)) & (!param.nohtml))
 	      if(firstpage)
 	      {
 			firstpage=0;
-      	  if(-1 == FPuts(tfh,"<hr>\n<address>Converted using <a href=\"http://www.unsatisfactorysoftware.co.uk/guideml/\">" VERS "</a></address>\n")) goto ErrorFile;
+      	  if(-1 == FPuts(tfh,"<hr>\n<address>Converted using <a href=\"https://www.unsatisfactorysoftware.co.uk/guideml/\">" VERS "</a></address>\n")) goto ErrorFile;
       	}
       }
 
@@ -2345,7 +2344,7 @@ Done:
       }
 		else
 		{
-      	  if(-1 == FPuts(tfh,"<address>Converted using <a href=\"http://www.unsatisfactorysoftware.co.uk/guideml/\">" VERS "</a></address>\n")) goto ErrorFile;
+      	  if(-1 == FPuts(tfh,"<address>Converted using <a href=\"https://www.unsatisfactorysoftware.co.uk/guideml/\">" VERS "</a></address>\n")) goto ErrorFile;
       }
 
 if(!param.nohtml)
@@ -4439,7 +4438,7 @@ if(scrn = LockPubScreen(NULL)) UnlockPubScreen(NULL,scrn);
 
                                 						case 2: // about
 
-                                							err(VERS " (" DATE ")\n\n© 1997-8 Richard Körber\nhttp://www.shredzone.de\n\n© 2001-8 Chris Young\nhttp://www.unsatisfactorysoftware.co.uk","OK",0);
+                                							err(VERS " (" DATE ")\n\n© 1997-8 Richard Körber\nhttp://www.shredzone.de\n\n© 2001-8 Chris Young\nhttps://www.unsatisfactorysoftware.co.uk","OK",0);
                                 						break;
 
                                 						case 4: // quit
