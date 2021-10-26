@@ -4,9 +4,12 @@ Author:   shred@chessy.aworld.de (Richard Koerber),chris@unsatisfactorysoftware.
 Type:     text/hyper
 Kurz:     AmigaGuide -> HTML-Konverter mit GUI
 Version:  3.16
-Requires: AmigaOS 3.2 or higher; CLI interface may work on 2.1
 Language: English
 Architecture: m68k-amigaos >= 3.2.0; ppc-amigaos >= 4.0.0
+
+GUI requires an AmigaOS at least 3.5 with Reaction.
+This includes 3.9 and 3.2, but not 3.1.4.
+CLI should work on 2.1.
 
 AmigaGuide to HTML file converter, with lots of features including:
 
