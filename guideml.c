@@ -211,32 +211,32 @@ struct Parameter                          /* Structure of Shell parameters */
   STRPTR find;
   STRPTR bar;
   STRPTR bodyext;
-  LONG   verbatim;
-  LONG   images;
-  LONG   footer;
+  intptr_t   verbatim;
+  intptr_t   images;
+  intptr_t   footer;
   STRPTR linkadd;
-  LONG   nolink;
-  LONG   noemail;
-  LONG   nowarn;
-  LONG   msdos;
-  LONG   singlefile;
-  LONG   dotdotslash;
-  LONG   numberlines;
-  LONG   nonavbar;
-  LONG   nomoznav;
-  LONG   showall;
+  intptr_t   nolink;
+  intptr_t   noemail;
+  intptr_t   nowarn;
+  intptr_t   msdos;
+  intptr_t   singlefile;
+  intptr_t   dotdotslash;
+  intptr_t   numberlines;
+  intptr_t   nonavbar;
+  intptr_t   nomoznav;
+  intptr_t   showall;
   STRPTR htmltoptxt;
   STRPTR htmlheadf;
   STRPTR htmlbottxt;
   STRPTR htmlfootf;
-  LONG   nohtml;
+  intptr_t   nohtml;
   STRPTR cssurl;
-  LONG   wordwrap;
-  LONG	smartwrap;
-  LONG   varwidth;
-  LONG 	noauto;
-	ULONG lindent;
-	ULONG colours[7];
+  intptr_t   wordwrap;
+  intptr_t   smartwrap;
+  intptr_t   varwidth;
+  intptr_t   noauto;
+  uintptr_t  lindent;
+  uintptr_t  colours[7];
 }param = {NULL};
 
 struct Tracker
@@ -2590,7 +2590,7 @@ if(!wb)
 	param.colours[5] = 0xffffff; // background
 	param.colours[6] = 0x4444ff; // highlight
 
-  if(args = (struct RDArgs *)ReadArgs(template,(LONG *)&param,NULL))
+  if(args = (struct RDArgs *)ReadArgs(template,(IPTR*)&param,NULL))
 	{
 		if(param.lindent)
 		{
