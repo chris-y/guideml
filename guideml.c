@@ -458,6 +458,7 @@ struct Locale *locale = NULL;
 typedef   signed long  int32;
 typedef   signed long long  int64;
 #endif
+#endif
 
 int32 seek64(BPTR file, int64 posn, int32 mode)
 {
@@ -470,6 +471,7 @@ int32 seek64(BPTR file, int64 posn, int32 mode)
 #endif
 }
 
+#ifndef __HAIKU__
 char *mystrlwr(string)
 unsigned char *string;
 {
@@ -662,9 +664,11 @@ if(param.dotdotslash && !param.singlefile && strchr(link,'/'))
 	}
   *var = '\0';
 
+#ifndef __HAIKU__
   StrConvert(locale, orig_var, strconvtmp, 100, SC_COLLATE1);
   mystrlwr(strconvtmp);
   strcpy(orig_var, strconvtmp);
+#endif
 }
 //<
 //> MyPutCh()
@@ -1750,7 +1754,9 @@ LONG Convert(BPTR fh)
   {
     linenr++;
     if(FGets(fh,buffer,LINELEN) == NULL) {
+#ifndef __HAIKU__
 	   if((!wb) && (IoErr() != 0)) printf("IO Error: %ld\n", IoErr());
+#endif
 	   goto Done;
 	}
 
@@ -1994,8 +2000,12 @@ LONG Convert(BPTR fh)
       *++line = '\0';               // terminate the line
     }
 
+#ifdef __HAIKU__
+	strcpy(nodename, node);
+#else
     StrConvert(locale, node, nodename, 100, SC_COLLATE1);
     mystrlwr(nodename);                   // node name to lowercase
+#endif
 
 	if(param.singlefile)
 	{
@@ -2008,7 +2018,9 @@ LONG Convert(BPTR fh)
 			mode = MODE_OLDFILE;
 		}
 
+#ifndef __HAIKU__
 		mystrlwr(param.from);
+#endif
 		strcpy(filename,FilePart(param.from));
 	    if(param.msdos)
     	{
@@ -5017,7 +5029,7 @@ return(menustrip);
 void cleanup(int fail)
 {
 	if(ttfrom) FreeVec(ttfrom);
-#if 0
+#ifndef __HAIKU__
 	if(ttto) FreeMem(ttto,strlen(ttto)+1);
 	if(tthomeurl) FreeMem(tthomeurl,strlen(tthomeurl)+1);
 	if(ttfindurl) FreeMem(ttfindurl,strlen(ttfindurl)+1);
@@ -5035,7 +5047,6 @@ void cleanup(int fail)
 	if(tthtmlfootf) FreeMem(tthtmlfootf,strlen(tthtmlfootf)+1);
 	if(ttcss) FreeMem(ttcss,strlen(ttcss)+1);
 
-#ifndef __HAIKU__
 	if(LocaleBase) {
 		CloseLocale(locale);
 
