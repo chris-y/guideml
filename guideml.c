@@ -10,7 +10,7 @@
 **
 ** Updated 2001-2008 by Chris Young
 ** chris@unsatisfactorysoftware.co.uk
-** http://www.unsatisfactorysoftware.co.uk
+** https://www.unsatisfactorysoftware.co.uk
 ***************************************************************/
 /* to compile:
 stack 500000
@@ -50,6 +50,8 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 #include <string.h>
 #include <proto/exec.h>
 #include <proto/dos.h>
+#include <proto/gadtools.h>
+#include <proto/locale.h>
 #include <proto/utility.h>
 #include <exec/lists.h>
 //#include <exec/nodes.h>
@@ -59,7 +61,35 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 //#include <libraries/dos.h>
 
 #include <exec/types.h>
-//#include <exec/io.h>
+#include <exec/io.h>
+#include <proto/asl.h>
+#include <proto/intuition.h>
+#include <proto/wb.h>
+#include <proto/window.h>
+#include <proto/layout.h>
+#include <proto/checkbox.h>
+#include <proto/button.h>
+#include <proto/label.h>
+#include <proto/chooser.h>
+#include <proto/getfile.h>
+#include <proto/clicktab.h>
+#include <proto/string.h>
+#include <proto/slider.h>
+// #include <clib/integer_protos.h>
+// #include <clib/listbrowser_protos.h>
+#include <proto/icon.h>
+
+#ifdef __amigaos4__
+#include <dos/anchorpath.h>
+#include <proto/getcolor.h>
+#include <gadgets/getcolor.h>
+#endif
+
+#include <intuition/intuition.h>
+#include <intuition/icclass.h>
+#include <libraries/gadtools.h>
+#include <workbench/icon.h>
+#include <workbench/workbench.h>
 
 #include <stdlib.h>
 
@@ -68,11 +98,13 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 #define LINELEN (1024)                    /* Maximum length of a line */
 
 struct Library *GadToolsBase;
+struct Library *LocaleBase;
 struct Library *WorkbenchBase;
 
 #ifdef __amigaos4__
 struct Library *GetColorBase;
 struct GadToolsIFace *IGadTools;
+struct LocaleIFace *ILocale;
 struct UtilityIFace *IUtility;
 struct IntuitionIFace *IIntuition;
 struct WorkbenchIFace *IWorkbench;
@@ -89,12 +121,11 @@ struct ButtonIFace *IButton;
 struct LabelIFace *ILabel;
 struct CheckBoxIFace *ICheckBox;
 struct AslIFace *IAsl;
-struct Library *DOSBase;
+//struct Library *DOSBase;
 #else
 struct Library *UtilityBase = NULL;
 #endif
 
-//struct Library *DOSBase;
 struct Library *AslBase;
 struct Library *IntuitionBase;
 struct Library *WindowBase;
@@ -111,10 +142,10 @@ struct Library *SliderBase;
 struct Library *GetFileBase;
 struct Library *IconBase;
 
-#if defined (__amigaos4__) && !defined(__USE_INLINE__)
-#define GetColorObject      IIntuition->NewObject( IGetColor->GETCOLOR_GetClass(), NULL
+#ifdef __amigaos4__
+  #define CurrentDir SetCurrentDir
 #else
-#define GetColorObject      NewObject( GETCOLOR_GetClass(), NULL
+  #define GetColorObject      NewObject( GETCOLOR_GetClass(), NULL
 #endif
 
 void err(char * a,char * b,int c)
@@ -223,7 +254,7 @@ struct Parameter                          /* Structure of Shell parameters */
   intptr_t   dotdotslash;
   intptr_t   numberlines;
   intptr_t   nonavbar;
-  intptr_t   nomoznav;
+  intptr_t   moznav;
   intptr_t   showall;
   STRPTR htmltoptxt;
   STRPTR htmlheadf;
@@ -303,6 +334,7 @@ struct LinkStr                            /* Link bar alternative texts */
 
 char Index[100];                          /* Index page name */
 char Help[100];
+char TOC[100];
 
 char temp[300];
 
@@ -418,7 +450,50 @@ char *macro[20];
 char *macrotext[20];
 int macros=0;
 
-#if 0
+#ifndef __HAIKU__
+/* <OS4 needs this to be set (OS4 is happy with NULL) */
+struct Locale *locale = NULL;
+
+#ifndef __amigaos4__
+typedef   signed long  int32;
+typedef   signed long long  int64;
+#endif
+
+int32 seek64(BPTR file, int64 posn, int32 mode)
+{
+#ifdef __amigaos4__
+	return ChangeFilePosition(file, posn, mode);	
+#else
+	long oldposn = Seek(file, (long)posn, mode);
+	if(oldposn == -1) return 0;
+		else return 1;
+#endif
+}
+
+char *mystrlwr(string)
+unsigned char *string;
+{
+    unsigned char *p=string;
+
+    while ((*p = ConvToLower(locale,*p) ) != '\0') {
+        ++p;
+    }
+    return(string);
+}
+
+#ifndef __amigaos4__
+char *strdup(const char *old)
+{
+        char *t = malloc(strlen(old)+1);
+        if (t != 0)
+                strcpy(t, old);
+        return t;
+}
+#endif
+
+#ifndef __amigaos4__
+static const ULONG REGARGS AslGuideHook(__reg("a0") struct Hook *mh,__reg("a2") struct FileRequester *fr,__reg("a1") struct AnchorPath *ap)
+#else
 static const ULONG AslGuideHook(struct Hook *mh,struct FileRequester *fr,struct AnchorPathOld *ap)
 {
 	BPTR file = 0;
@@ -450,6 +525,7 @@ static const ULONG AslGuideHook(struct Hook *mh,struct FileRequester *fr,struct 
   return(FALSE);
 } 
 #endif
+#endif
 
 //> SaveImg()
 /*------------------------------------------------------------*
@@ -475,7 +551,7 @@ LONG SaveImg(STRPTR file, UBYTE *data, ULONG len)
 
   if(lock = Open(file,MODE_NEWFILE))      // Open the image file
   {
-    if(-1 == Write(lock,data,len))        // Write the image
+    if(Write(lock, (LONG)data, len) == -1)        // Write the image
     {
       Close(lock);                        // Write failed, so
       return(0);                          // return without success
@@ -525,6 +601,8 @@ LONG SaveImages(void)
 void CopyLink(STRPTR link, STRPTR var)
 {
   char ch;
+  char *orig_var = var;
+  char strconvtmp[100];
 	char *tmp=NULL;
 
   var[0] = '\0';                          // Init
@@ -549,7 +627,6 @@ if(param.dotdotslash && !param.singlefile && strchr(link,'/'))
     while((ch = *link++)!=' ' && ch!='\n')
     {
       if(ch==':') ch='/'; // colon to slash again
-      if(ch>='A' && ch<='Z') ch+=32; // upper to lower again
       *var++ = ch;
     }
   }
@@ -571,7 +648,6 @@ if(param.dotdotslash && !param.singlefile && strchr(link,'/'))
 
       if(ch==' ') ch = '_'; // space converts to underscore
       if(ch==':') ch = '/'; // colon converts to slash
-      if(ch>='A' && ch<='Z') ch+=32; // uppercase converts to lowercase
       *var++ = ch;
     }
   }
@@ -585,6 +661,10 @@ if(param.dotdotslash && !param.singlefile && strchr(link,'/'))
   		if(!param.msdos) *var++ = 'l';
 	}
   *var = '\0';
+
+  StrConvert(locale, orig_var, strconvtmp, 100, SC_COLLATE1);
+  mystrlwr(strconvtmp);
+  strcpy(orig_var, strconvtmp);
 }
 //<
 //> MyPutCh()
@@ -658,7 +738,7 @@ LONG MyPutHex(BPTR fh, ULONG num)
 LONG ConvLine(BPTR fh, STRPTR buf, ULONG linenr,ULONG nodelinenr,STRPTR filename)
 {
   unsigned char ch;
-  char linkstr[100];
+  char linkstr[100], linkstr2[100];
   register UWORD dolink  = !param.nolink;
   register UWORD doemail = !param.noemail;
   ULONG linkline;
@@ -817,23 +897,23 @@ if((param.smartwrap) && (strlen(buf)<2))
           while(*link && (*link==' ' || *link==',' || *link=='\t')) link++;
           if(!*link) return(0);
           if(Strnicmp(link,"link",4) == 0)
-		  {
-			  link+=4;
-			  while(*link && *link==' ') link++;
-			  if(!*link) return(0);
-			  if(*link == '\"')
-			  {
-				  link++;
-				  linkquot=1;
-			  }
-			  while(*link && *link!='}')
-			  {
-				  ch = *link++;
-				  if(ch=='\"' && linkquot) break;
-				  if(ch==' ' && !linkquot) break;
-				  if(ch>='A' && ch<='Z') ch+=32;
-				  linkstr[linkpos++] = (ch==' ' || ch==':' ? '_' : ch);
-			  }
+          {
+              link+=4;
+              while(*link && *link==' ') link++;
+              if(!*link) return(0);
+              if(*link == '\"')
+              {
+                  link++;
+                  linkquot=1;
+              }
+              while(*link && *link!='}')
+              {
+                  ch = *link++;
+                  if(ch=='\"' && linkquot) break;
+                  if(ch==' ' && !linkquot) break;
+                  if(ch>='A' && ch<='Z') ch+=32;
+                  linkstr[linkpos++] = (ch==' ' || ch==':' ? '_' : ch);
+              }
 
 			  if(*link == ' ') link++;
 
@@ -1167,6 +1247,20 @@ if((param.smartwrap) && (strlen(buf)<2))
           if(agpens[i]) break;
         }
 
+        if(!Strnicmp(buf,"img ",4))         // @{img ...}
+        {
+          if(-1 == FPuts(fh,"<img src=\"")) return(0);
+          buf += 4;
+
+          while(*buf != '}') {
+	          if(-1 == MyPutCh(fh,*buf)) return(0);
+    	      buf++; 
+          }
+
+          if(-1 == FPuts(fh,"\">")) return(0);
+
+        }
+
         while(*buf && *buf!='}') buf++;   // Skip an unknown command!
         buf++;
         break;
@@ -1204,43 +1298,37 @@ LONG NavBar(BPTR tfh, struct Entry *enode)
 		before = 1;
     }
 
-
 	if(param.toc)
 	{
-	    if(enode->Count)            // main page does not have a TOC link
-    	{
-      		if(before) if(-1 == MyPuts(tfh,param.bar)) break;
-
-			if(param.linkadd)
-			{
-				strcpy(main,param.linkadd);
-				strcat(main,"main.htm");
-			}
-			else
-			{
-				strcpy(main,"main.htm");
-			}
-
-	      	if(param.msdos)
-    	  	{
-        		if(-1 == FPrintf(tfh,"<a href=\"%s\">",(*enode->TOC ? enode->TOC : main))) break;
-      		}
-      		else
-      		{
-				strcat(main,"l");
-        		if(-1 == FPrintf(tfh,"<a href=\"%s\">",(*enode->TOC ? enode->TOC : main))) break;
-      		}
-      		if(-1 == MyPuts(tfh,param.toc)) break;
-      		if(-1 == FPuts(tfh,"</a>")) break;
-      		before = 1;
-    	}
-    	else if(param.showall)
-    	{
-      		if(before) if(-1 == MyPuts(tfh,param.bar)) break;
-      		if(-1 == MyPuts(tfh,param.toc)) break;
-    		before = 1;
-	    }
-	}
+		if(enode->Count)  {          // main page does not have a TOC link
+	    	if(*enode->TOC)
+    		{
+      			if(before) if(-1 == MyPuts(tfh,param.bar)) break;
+      			if(-1 == FPrintf(tfh,"<a href=\"%s\">",enode->TOC)) break;
+      			if(-1 == MyPuts(tfh,param.toc)) break;
+      			if(-1 == FPuts(tfh,"</a>")) break;
+      			before = 1;
+    		}
+    		else if(*TOC)
+    		{
+      			if(before) if(-1 == MyPuts(tfh,param.bar)) break;
+      			if(-1 == FPrintf(tfh,"<a href=\"%s\">",TOC)) break;
+      			if(-1 == MyPuts(tfh,param.toc)) break;
+      			if(-1 == FPuts(tfh,"</a>")) break;
+      			before = 1;
+    		}
+    		else if(param.showall)
+    		{
+      			if(before) if(-1 == MyPuts(tfh,param.bar)) break;
+      			if(-1 == MyPuts(tfh,param.toc)) break;
+      			before = 1;
+    		}
+		} else if(param.showall) {
+      			if(before) if(-1 == MyPuts(tfh,param.bar)) break;
+      			if(-1 == MyPuts(tfh,param.toc)) break;
+      			before = 1;
+		}
+    }
 
 	if(param.index)
 	{
@@ -1465,7 +1553,7 @@ LONG MozNavBar(BPTR tfh, struct Entry *enode)
       if(-1 == FPrintf(tfh,"<link rel=\"search\" href=\"%s\" title=\"%s\" />\n",param.findurl,textlabs.find)) break;
     }
 
-      if(-1 == FPuts(tfh,"<link rel=\"GuideML\" href=\"http://www.unsatisfactorysoftware.co.uk/\" title=\"Unsatisfactory Software\" />\n")) break;
+      if(-1 == FPuts(tfh,"<link rel=\"GuideML\" href=\"https://www.unsatisfactorysoftware.co.uk/\" title=\"Unsatisfactory Software\" />\n")) break;
 
 
 //    if(-1 == FPutC(tfh,'\n')) break;
@@ -1661,7 +1749,10 @@ LONG Convert(BPTR fh)
   do
   {
     linenr++;
-    if(FGets(fh,buffer,LINELEN) == NULL) goto Done;
+    if(FGets(fh,buffer,LINELEN) == NULL) {
+	   if((!wb) && (IoErr() != 0)) printf("IO Error: %ld\n", IoErr());
+	   goto Done;
+	}
 
    if(!param.noauto)
    {
@@ -1903,9 +1994,8 @@ LONG Convert(BPTR fh)
       *++line = '\0';               // terminate the line
     }
 
-    strlwr(node);                   // node name to lowercase
-
-	strcpy(nodename,node);
+    StrConvert(locale, node, nodename, 100, SC_COLLATE1);
+    mystrlwr(nodename);                   // node name to lowercase
 
 	if(param.singlefile)
 	{
@@ -1918,7 +2008,7 @@ LONG Convert(BPTR fh)
 			mode = MODE_OLDFILE;
 		}
 
-		strlwr(param.from);
+		mystrlwr(param.from);
 		strcpy(filename,FilePart(param.from));
 	    if(param.msdos)
     	{
@@ -1952,7 +2042,7 @@ LONG Convert(BPTR fh)
 
 		if(param.singlefile)
 		{
-			Seek(tfh,0,OFFSET_END);
+			seek64(tfh, 0, OFFSET_END);
 		}
 
 
@@ -1966,7 +2056,7 @@ if(((param.singlefile & firstpage) | (!param.singlefile)) & (!param.nohtml))
       if(-1 == FPuts(tfh,"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"\n\"http://www.w3.org/TR/html4/loose.dtd\">\n<html>\n<head>\n<title>")) goto ErrorFile;
       if(-1 == MyPuts(tfh,title)) goto ErrorFile;
       if(-1 == FPuts(tfh,"</title>\n"
-                         "<meta name=\"Generator\" content=\"" VERS " (http://www.unsatisfactorysoftware.co.uk/guideml/)\">\n"
+                         "<meta name=\"Generator\" content=\"" VERS " (https://www.unsatisfactorysoftware.co.uk/guideml/)\">\n"
                          "<meta http-equiv=\"Content-Type\" content=\"text/html\">\n")) goto ErrorFile;
 		// start custom meta
 		if(strlen(copyright) > 2)
@@ -2032,7 +2122,7 @@ if(((param.singlefile & firstpage) | (!param.singlefile)) & (!param.nohtml))
 			if(-1 == FPuts(tfh,"\" type=\"text/css\">")) goto ErrorFile;
 		}
 
-		if(!param.nomoznav)
+		if(!param.moznav)
 		{
       if(!MozNavBar(tfh,enode)) goto ErrorFile;
       }
@@ -2223,7 +2313,7 @@ if(((param.singlefile & firstpage) | (!param.singlefile)) & (!param.nohtml))
 	      if(firstpage)
 	      {
 			firstpage=0;
-      	  if(-1 == FPuts(tfh,"<hr>\n<address>Converted using <a href=\"http://www.unsatisfactorysoftware.co.uk/guideml/\">" VERS "</a></address>\n")) goto ErrorFile;
+      	  if(-1 == FPuts(tfh,"<hr>\n<address>Converted using <a href=\"https://www.unsatisfactorysoftware.co.uk/guideml/\">" VERS "</a></address>\n")) goto ErrorFile;
       	}
       }
 
@@ -2257,7 +2347,7 @@ Done:
 
     if(tfh = Open(filename,MODE_OLDFILE))
     {
-		Seek(tfh,0,OFFSET_END);
+		seek64(tfh, 0, OFFSET_END);
 
       if(param.footer)
       {
@@ -2279,7 +2369,7 @@ Done:
       }
 		else
 		{
-      	  if(-1 == FPuts(tfh,"<address>Converted using <a href=\"http://www.unsatisfactorysoftware.co.uk/guideml/\">" VERS "</a></address>\n")) goto ErrorFile;
+      	  if(-1 == FPuts(tfh,"<address>Converted using <a href=\"https://www.unsatisfactorysoftware.co.uk/guideml/\">" VERS "</a></address>\n")) goto ErrorFile;
       }
 
 if(!param.nohtml)
@@ -2341,6 +2431,8 @@ LONG PreScan(BPTR fh)
     err(temp,"OK",0);
     goto Error;
   }
+
+  CopyLink("main\n", TOC);
 
    /* Search for commands */
   for(;;)
@@ -2556,7 +2648,7 @@ int main(int argc, char **argv)
 {
 
   struct RDArgs *args;
-  static char template[] = "FILE/A,TO/K,URL=HOMEURL/K,FINDURL=SEARCHURL/K,PREV/K,NEXT/K,INDEX/K,TOC/K,HELP/K,RETRACE/K,HOME/K,FIND=SEARCH/K,BAR/K,BODY/K,VER=VERBATIM/S,IMG=IMAGES/S,FTR=FOOTER/S,LA=LINKADD/K,NL=NOLINKS/S,NE=NOEMAIL/S,NW=NOWARN/S,MSDOS/S,SF=SINGLEFILE/S,PEL=PARENTEXTLINKS/S,LN=NUMBERLINES/S,NONAVBAR/S,NOMOZNAV/S,SHOWALL/S,HTMLHEAD/K,HTMLHEADF/K,HTMLFOOT/K,HTMLFOOTF/K,NOHTML/S,CSS/K,WORDWRAP/S,SMARTWRAP/S,VARWIDTH/S,NOAUTO/S,LINDENT/K/N";
+  static char template[] = "FILE/A,TO/K,URL=HOMEURL/K,FINDURL=SEARCHURL/K,PREV/K,NEXT/K,INDEX/K,TOC/K,HELP/K,RETRACE/K,HOME/K,FIND=SEARCH/K,BAR/K,BODY/K,VER=VERBATIM/S,IMG=IMAGES/S,FTR=FOOTER/S,LA=LINKADD/K,NL=NOLINKS/S,NE=NOEMAIL/S,NW=NOWARN/S,MSDOS/S,SF=SINGLEFILE/S,PEL=PARENTEXTLINKS/S,LN=NUMBERLINES/S,NONAVBAR/S,MOZNAV/S,SHOWALL/S,HTMLHEAD/K,HTMLHEADF/K,HTMLFOOT/K,HTMLFOOTF/K,NOHTML/S,CSS/K,WORDWRAP/S,SMARTWRAP/S,VARWIDTH/S,NOAUTO/S,LINDENT/K/N";
   BPTR fh;
   BPTR hhf;
   BPTR oldlock = (BPTR)NULL;
@@ -2567,6 +2659,35 @@ int main(int argc, char **argv)
   long hhs = 4096;
 STRPTR oldlinkadd;
         BPTR destlock;
+
+#ifndef __HAIKU__
+	if((UtilityBase = OpenLibrary("utility.library",37))==0)
+		{
+		 err("Unable to open utility.library v37","OK",20);
+		}
+
+#ifdef __amigaos4__
+
+		IUtility=(struct UtilityIFace *)GetInterface(UtilityBase,"main",1,NULL);
+
+#endif
+
+	if((LocaleBase = OpenLibrary("locale.library",38))==0)
+		{
+    				strcpy(temp,"Unable to open locale.library v38");
+ err(temp,"OK",20);
+		}
+#ifdef __amigaos4__
+		else
+		{
+			ILocale=(struct GadToolsIFace *)GetInterface(LocaleBase,"main",1,NULL);
+		}
+#endif
+
+   if(0 == argc) return(wbmain((struct WBStartup *)argv));
+
+	locale = OpenLocale(NULL);
+#endif
 
   NewList((struct List *)&entries);
 
@@ -2708,7 +2829,7 @@ if(ok)
         Close(fh);
         goto Flush;
       }
-      Seek(fh,0,OFFSET_BEGINNING);
+      seek64(fh, 0, OFFSET_BEGINNING);
       if(!Convert(fh))
       {
 				strcpy(temp,"**ERROR: Conversion failed.");
@@ -2801,7 +2922,7 @@ Flush:
            "\tPEL=PARENTEXTLINKS/S\t\tPrepends ../ to external AmigaGuide links\n"
            "\tLN=NUMBERLINES/S\t\tEnables line-numbered links to work\n"
            "\tNONAVBAR/S\t\tDo not create the HTML navigation bar\n"
-           "\tNOMOZNAV/S\t\tDo not create Mozilla-compatible Site Navigation Bar\n"
+           "\tMOZNAV/S\t\tCreate Mozilla-compatible Site Navigation Bar (obsolete)\n"
            "\tSHOWALL/S\t\tKeep navbar consistent between pages\n"
            "\tHTMLHEAD/K\t\tHTML to put in front of guide text\n"
            "\tHTMLHEADF/K\t\tFile containing HTMLHEAD (overrides HTMLHEAD)\n"
@@ -2826,6 +2947,2072 @@ Flush:
  * as it is largely cut'n'paste from a different project   *
  * --- Starts with GuideML 3.1 ---                         */
 
+#ifndef __HAIKU__
+int wbmain(struct WBStartup *WBenchMsg)
+{
+struct WBArg *wbarg;
+	LONG i;
+	int olddir;
+int name = 0;
+
+wb=1;
+ok=1;
+
+param.lindent=4;
+
+  param.prev  = "&lt; Browse";
+  param.next  = "Browse &gt;";
+  param.index = "Index";
+  param.toc   = "Contents";
+  param.home  = "Home";
+  param.help  = "Help";
+  param.find  = "Search";
+  param.bar   = defbar;
+  param.retrace = NULL;
+
+	param.colours[0] = 0x000000;
+	param.colours[1] = 0xffffff;
+	param.colours[2] = 0x000000;
+	param.colours[3] = 0x4a8abd;
+	param.colours[4] = 0x000000;
+	param.colours[5] = 0xcfcfcf;
+	param.colours[6] = 0xffffff;
+
+param.nowarn = TRUE;
+
+
+/*
+	if((UtilityBase = OpenLibrary("utility.library",37))==0)
+		{
+		 err("Unable to open utility.library v37","OK",20);
+		}
+
+#ifdef __amigaos4__
+
+		IUtility=(struct UtilityIFace *)GetInterface(UtilityBase,"main",1,NULL);
+
+#endif
+*/
+
+	if((IntuitionBase = OpenLibrary("intuition.library",37))==0)
+		{
+     				strcpy(temp,"Unable to open intuition.library v37");
+ err(temp,"OK",20);
+		}
+#ifdef __amigaos4__
+		else
+		{
+			IIntuition=(struct IntuitionIFace *)GetInterface(IntuitionBase,"main",1,NULL);
+		}
+#endif
+
+	if((WorkbenchBase = OpenLibrary("workbench.library",37))==0)
+		{
+     				strcpy(temp,"Unable to open workbench.library v37");
+ err(temp,"OK",20);
+		}
+#ifdef __amigaos4__
+		else
+		{
+			IWorkbench=(struct WorkbenchIFace *)GetInterface(WorkbenchBase,"main",1,NULL);
+		}
+#endif
+
+	if((DOSBase = OpenLibrary("dos.library",37))==0)
+		{
+    				strcpy(temp,"Unable to open dos.library v37");
+ err(temp,"OK",20);
+		}
+#ifdef __amigaos4__
+		else
+		{
+			IDOS=(struct DOSIFace *)GetInterface(DOSBase,"main",1,NULL);
+		}
+#endif
+
+	if((AslBase = OpenLibrary("asl.library",38))==0)
+		{
+    				strcpy(temp,"Unable to open asl.library v38");
+ err(temp,"OK",20);
+		}
+#ifdef __amigaos4__
+		else
+		{
+			IAsl=(struct AslIFace *)GetInterface(AslBase,"main",1,NULL);
+		}
+#endif
+
+	if((GadToolsBase = OpenLibrary("gadtools.library",37))==0)
+		{
+    				strcpy(temp,"Unable to open gadtools.library v37");
+ err(temp,"OK",20);
+		}
+#ifdef __amigaos4__
+		else
+		{
+			IGadTools=(struct GadToolsIFace *)GetInterface(GadToolsBase,"main",1,NULL);
+		}
+#endif
+
+     if((WindowBase = OpenLibrary("window.class",44))==0) err("Unable to open window.class v44","OK",20);
+#ifdef __amigaos4__
+	if(WindowBase)	IWindow=(struct WindowIFace *)GetInterface(WindowBase,"main",1,NULL);
+#endif
+
+     if((LayoutBase = OpenLibrary("gadgets/layout.gadget",44))==0) err("Unable to open layout.gadget v44","OK",20);
+#ifdef __amigaos4__
+	if(LayoutBase)	ILayout=(struct LayoutIFace *)GetInterface(LayoutBase,"main",1,NULL);
+#endif
+
+     if((ButtonBase = OpenLibrary("gadgets/button.gadget",44))==0) err("Unable to open button.gadget v44","OK",20);
+#ifdef __amigaos4__
+	if(ButtonBase)	IButton=(struct ButtonIFace *)GetInterface(ButtonBase,"main",1,NULL);
+#endif
+
+     if((CheckBoxBase = OpenLibrary("gadgets/checkbox.gadget",44))==0) err("Unable to open checkbox.gadget v44","OK",20);
+#ifdef __amigaos4__
+	if(CheckBoxBase)	ICheckBox=(struct CheckBoxIFace *)GetInterface(CheckBoxBase,"main",1,NULL);
+#endif
+
+     if((LabelBase = OpenLibrary("images/label.image",44))==0) err("Unable to open label.image v44","OK",20);
+#ifdef __amigaos4__
+	if(LabelBase)	ILabel=(struct LabelIFace *)GetInterface(LabelBase,"main",1,NULL);
+#endif
+
+     if((ChooserBase = OpenLibrary("gadgets/chooser.gadget",44))==0) err("Unable to open chooser.gadget v44","OK",20);
+#ifdef __amigaos4__
+	if(ChooserBase)	IChooser=(struct ChooserIFace *)GetInterface(ChooserBase,"main",1,NULL);
+#endif
+
+     if((ClickTabBase = OpenLibrary("gadgets/clicktab.gadget",44))==0) err("Unable to open clicktab.gadget v44","OK",20);
+#ifdef __amigaos4__
+	if(ClickTabBase)	IClickTab=(struct ClickTabIFace *)GetInterface(ClickTabBase,"main",1,NULL);
+#endif
+
+#ifdef __amigaos4__
+     if((GetColorBase = OpenLibrary("gadgets/getcolor.gadget",51))==0)
+	{
+	 err("Unable to open getcolor.gadget v51","OK",20);
+	}
+	else
+	{
+		IGetColor=(struct GetColorIFace *)GetInterface(GetColorBase,"main",1,NULL);
+	}
+#endif
+
+//     if((ListBrowserBase = OpenLibrary("gadgets/listbrowser.gadget",44))==0) err("Unable to open listbrowser.gadget v44","OK",20);
+
+     if((GetFileBase = OpenLibrary("gadgets/getfile.gadget",44))==0) err("Unable to open getfile.gadget v44","OK",20);
+#ifdef __amigaos4__
+	if(GetFileBase)	IGetFile=(struct GetFileIFace *)GetInterface(GetFileBase,"main",1,NULL);
+#endif
+
+     if((StringBase = OpenLibrary("gadgets/string.gadget",44))==0) err("Unable to open string.gadget v44","OK",20);
+#ifdef __amigaos4__
+	if(StringBase)	IString=(struct StringIFace *)GetInterface(StringBase,"main",1,NULL);
+#endif
+
+     if((SliderBase = OpenLibrary("gadgets/slider.gadget",44))==0) err("Unable to open slider.gadget v44","OK",20);
+#ifdef __amigaos4__
+	if(SliderBase)	ISlider=(struct SliderIFace *)GetInterface(SliderBase,"main",1,NULL);
+#endif
+
+
+	IconBase = OpenLibrary("icon.library",44);
+	if(!IconBase)
+	{
+	 err("Cannot open icon.library v44","OK",20);
+	}
+	else
+	{
+#ifdef __amigaos4__
+	IIcon=(struct IconIFace *)GetInterface(IconBase,"main",1,NULL);
+#endif
+	}
+
+	for(i=0,wbarg=WBenchMsg->sm_ArgList;i<WBenchMsg->sm_NumArgs;i++,wbarg++)
+		{
+		olddir =-1;
+		if((wbarg->wa_Lock)&&(*wbarg->wa_Name))
+			olddir = CurrentDir(wbarg->wa_Lock);
+if(!name)
+{
+strcpy(defname,"PROGDIR:");
+ AddPart(defname,wbarg->wa_Name,100);
+ name=1;
+}
+
+		gettooltypes(wbarg);
+
+		if(olddir !=-1) CurrentDir(olddir);
+		}
+
+ui();
+
+}
+
+void gettooltypes(struct WBArg *wbarg)
+{
+	struct DiskObject *dobj;
+	STRPTR *toolarray;
+	char *s;
+
+	ttfrom = (char *)AllocVec(1024,MEMF_CLEAR);
+
+	if((*wbarg->wa_Name) && (dobj=GetIconTags(wbarg->wa_Name,NULL)))
+		{
+		toolarray = dobj->do_ToolTypes;
+		if(s = (char *)FindToolType(toolarray,"FILE"))
+			{
+				if(ttfrom)
+					{
+			 			strcpy(ttfrom,s);
+			 			param.from = ttfrom;
+					}
+			}
+		if(s = (char *)FindToolType(toolarray,"TO"))
+			{
+				ttto = AllocMem(strlen(s)+1,0);
+				if(ttto)
+					{
+					 	strcpy(ttto,s);
+					 	param.to = ttto;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"HOMEURL"))
+			{
+				tthomeurl = AllocMem(strlen(s)+1,0);
+				if(tthomeurl)
+					{
+					 	strcpy(tthomeurl,s);
+					 	param.homeurl = tthomeurl;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"SEARCHURL"))
+			{
+				ttfindurl = AllocMem(strlen(s)+1,0);
+				if(ttfindurl)
+					{
+					 	strcpy(ttfindurl,s);
+					 	param.findurl = ttfindurl;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"PREV"))
+			{
+				ttprev = AllocMem(strlen(s)+1,0);
+				if(ttprev)
+					{
+					 	strcpy(ttprev,s);
+					 	param.prev = ttprev;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"NEXT"))
+			{
+				ttnext = AllocMem(strlen(s)+1,0);
+				if(ttnext)
+					{
+					 	strcpy(ttnext,s);
+					 	param.next = ttnext;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"INDEX"))
+			{
+				ttindex = AllocMem(strlen(s)+1,0);
+				if(ttindex)
+					{
+					 	strcpy(ttindex,s);
+					 	param.index = ttindex;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"TOC"))
+			{
+				tttoc = AllocMem(strlen(s)+1,0);
+				if(tttoc)
+					{
+					 	strcpy(tttoc,s);
+					 	param.toc = tttoc;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"HELP"))
+			{
+				tthelp = AllocMem(strlen(s)+1,0);
+				if(tthelp)
+					{
+					 	strcpy(tthelp,s);
+					 	param.help = tthelp;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"RETRACE"))
+			{
+				ttretrace = AllocMem(strlen(s)+1,0);
+				if(ttretrace)
+					{
+					 	strcpy(ttretrace,s);
+					 	param.retrace = ttretrace;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"HOME"))
+			{
+				tthome = AllocMem(strlen(s)+1,0);
+				if(tthome)
+					{
+					 	strcpy(tthome,s);
+					 	param.home = tthome;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"SEARCH"))
+			{
+				ttfind = AllocMem(strlen(s)+1,0);
+				if(ttfind)
+					{
+					 	strcpy(ttfind,s);
+					 	param.find = ttfind;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"BAR"))
+			{
+				ttbar = AllocMem(strlen(s)+2,0);
+				if(ttbar)
+					{
+						strcpy(ttbar," ");
+					 	strcat(ttbar,s);
+					 	param.bar = ttbar;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"BODY"))
+			{
+				ttbody = AllocMem(strlen(s)+1,0);
+				if(ttbody)
+					{
+					 	strcpy(ttbody,s);
+					 	param.bodyext = ttbody;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"HTMLHEADF"))
+			{
+				tthtmlheadf = AllocMem(strlen(s)+1,0);
+				if(tthtmlheadf)
+					{
+					 	strcpy(tthtmlheadf,s);
+					 	param.htmlheadf = tthtmlheadf;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"HTMLFOOTF"))
+			{
+				tthtmlfootf = AllocMem(strlen(s)+1,0);
+				if(tthtmlfootf)
+					{
+					 	strcpy(tthtmlfootf,s);
+					 	param.htmlfootf = tthtmlfootf;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"LINKADD"))
+			{
+				ttlinkadd = AllocMem(strlen(s)+1,0);
+				if(ttlinkadd)
+					{
+					 	strcpy(ttlinkadd,s);
+					 	param.linkadd = ttlinkadd;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"CSS"))
+			{
+				ttcss = AllocMem(strlen(s)+1,0);
+				if(ttcss)
+					{
+					 	strcpy(ttcss,s);
+					 	param.cssurl = ttcss;
+					}
+			}
+
+		if(s = (char *)FindToolType(toolarray,"COLOUR0"))
+		{
+			param.colours[0]=strtol(s,NULL,16);
+		}
+
+		if(s = (char *)FindToolType(toolarray,"COLOUR1"))
+		{
+			param.colours[1]=strtol(s,NULL,16);
+		}
+
+		if(s = (char *)FindToolType(toolarray,"COLOUR2"))
+		{
+			param.colours[2]=strtol(s,NULL,16);
+		}
+
+		if(s = (char *)FindToolType(toolarray,"COLOUR3"))
+		{
+			param.colours[3]=strtol(s,NULL,16);
+		}
+
+		if(s = (char *)FindToolType(toolarray,"COLOUR4"))
+		{
+			param.colours[4]=strtol(s,NULL,16);
+		}
+
+		if(s = (char *)FindToolType(toolarray,"COLOUR5"))
+		{
+			param.colours[5]=strtol(s,NULL,16);
+		}
+
+		if(s = (char *)FindToolType(toolarray,"COLOUR6"))
+		{
+			param.colours[6]=strtol(s,NULL,16);
+		}
+
+		if(s = (char *)FindToolType(toolarray,"INDENT"))
+		{
+			param.lindent=atoi(s);
+		}
+
+		if(s = (char *)FindToolType(toolarray,"SINGLEFILE")) param.singlefile = TRUE;
+		if(s = (char *)FindToolType(toolarray,"PARENTEXTLINKS")) param.dotdotslash = TRUE;
+		if(s = (char *)FindToolType(toolarray,"NUMBERLINES")) param.numberlines = TRUE;
+		if(s = (char *)FindToolType(toolarray,"NOHTML")) param.nohtml = TRUE;
+		if(s = (char *)FindToolType(toolarray,"IMAGES")) param.images = TRUE;
+		if(s = (char *)FindToolType(toolarray,"FOOTER")) param.footer = TRUE;
+		if(s = (char *)FindToolType(toolarray,"NOLINKS")) param.nolink = TRUE;
+		if(s = (char *)FindToolType(toolarray,"NOEMAIL")) param.noemail = TRUE;
+		if(s = (char *)FindToolType(toolarray,"MSDOS")) param.msdos = TRUE;
+		if(s = (char *)FindToolType(toolarray,"NONAVBAR")) param.nonavbar = TRUE;
+		if(s = (char *)FindToolType(toolarray,"MOZNAV")) param.moznav = TRUE;
+		if(s = (char *)FindToolType(toolarray,"SHOWALL")) param.showall = TRUE;
+		if(s = (char *)FindToolType(toolarray,"VARWIDTH")) param.varwidth = TRUE;
+		if(s = (char *)FindToolType(toolarray,"NOAUTO")) param.noauto = TRUE;
+		if(s = (char *)FindToolType(toolarray,"WORDWRAP")) param.wordwrap = TRUE;
+		if(s = (char *)FindToolType(toolarray,"SMARTWRAP")) param.smartwrap = TRUE;
+		FreeDiskObject(dobj);
+		}
+
+}
+
+void savetooltypes(char *fname,int def)
+{
+	struct DiskObject *dobj;
+	UBYTE **oldtooltypes;
+	UBYTE *olddefaulttool;
+	UBYTE oldtype;
+	long olddir=-1;
+	int i=0;
+	UBYTE *newtooltypes[45];
+	char tttmp1[100];
+	char tttmp2[100];
+	char tttmp3[100];
+	char tttmp4[100];
+	char tttmp5[100];
+	char tttmp6[100];
+	char tttmp7[100];
+	char tttmp8[100];
+	char tttmp9[100];
+	char tttmp10[100];
+	char tttmp11[100];
+	char tttmp12[100];
+	char tttmp13[100];
+	char tttmp14[100];
+	char tttmp15[100];
+	char tttmp16[100];
+	char tttmp17[100];
+	char tttmp18[100];
+	char *defaulttool = "guideml\0";
+
+	if(!def) {
+		dobj=GetIconTags(fname,ICONGETA_FailIfUnavailable,FALSE,
+							ICONGETA_GetDefaultName,defaulttool,
+							ICONGETA_GetDefaultType,WBPROJECT,TAG_DONE);
+	} else {
+		dobj=GetIconTagList(fname, NULL);
+	}
+
+	if(dobj) {
+			oldtooltypes = (UBYTE **)dobj->do_ToolTypes;
+			olddefaulttool = dobj->do_DefaultTool;
+			oldtype = dobj->do_Type;
+
+			if(param.smartwrap) newtooltypes[0] = "SMARTWRAP";
+								else newtooltypes[0] = "(SMARTWRAP)";
+			if(param.wordwrap) newtooltypes[1] = "WORDWRAP";
+								else newtooltypes[1] = "(WORDWRAP)";
+			if(param.noauto) newtooltypes[2] = "NOAUTO";
+								else newtooltypes[2] = "(NOAUTO)";
+			if(param.varwidth) newtooltypes[3] = "VARWIDTH";
+								else newtooltypes[3] = "(VARWIDTH)";
+			if(param.showall) newtooltypes[4] = "SHOWALL";
+								else newtooltypes[4] = "(SHOWALL)";
+			if(param.moznav) newtooltypes[5] = "MOZNAV";
+								else newtooltypes[5] = "(MOZNAV)";
+			if(param.nonavbar) newtooltypes[6] = "NONAVBAR";
+								else newtooltypes[6] = "(NONAVBAR)";
+			if(param.msdos) newtooltypes[7] = "MSDOS";
+								else newtooltypes[7] = "(MSDOS)";
+			if(param.noemail) newtooltypes[8] = "NOEMAIL";
+								else newtooltypes[8] = "(NOEMAIL)";
+			if(param.nolink) newtooltypes[9] = "NOLINKS";
+								else newtooltypes[9] = "(NOLINKS)";
+			if(param.footer) newtooltypes[10] = "FOOTER";
+								else newtooltypes[10] = "(FOOTER)";
+			if(param.images) newtooltypes[11] = "IMAGES";
+								else newtooltypes[11] = "(IMAGES)";
+			if(param.cssurl)
+			{
+				strcpy(tttmp1,"CSS=");
+				newtooltypes[12] = strcat(tttmp1,param.cssurl);
+			}
+				else
+			{
+				newtooltypes[12]="(CSS=)";
+			}
+
+			if(param.htmlfootf)
+			{
+				strcpy(tttmp2,"HTMLFOOTF=");
+				newtooltypes[13] = strcat(tttmp2,param.htmlfootf);
+			}
+				else
+			{
+				newtooltypes[13]="(HTMLFOOTF=)";
+			}
+
+			if(param.htmlheadf)
+			{
+				strcpy(tttmp3,"HTMLHEADF=");
+				newtooltypes[14] = strcat(tttmp3,param.htmlheadf);
+			}
+				else
+			{
+				newtooltypes[14]="(HTMLHEADF=)";
+			}
+
+			if(param.bodyext)
+			{
+				strcpy(tttmp4,"BODY=");
+				newtooltypes[15] = strcat(tttmp4,param.bodyext);
+			}
+				else
+			{
+				newtooltypes[15]="(BODY=)";
+			}
+
+			if(param.bar)
+			{
+				strcpy(tttmp5,"BAR=");
+				newtooltypes[16] = strcat(tttmp5,param.bar);
+			}
+				else
+			{
+				newtooltypes[16]="(BAR=)";
+			}
+
+			if(param.find)
+			{
+				strcpy(tttmp6,"SEARCH=");
+				newtooltypes[17] = strcat(tttmp6,param.find);
+			}
+				else
+			{
+				newtooltypes[17]="(SEARCH=)";
+			}
+
+			if(param.home)
+			{
+				strcpy(tttmp7,"HOME=");
+				newtooltypes[18] = strcat(tttmp7,param.home);
+			}
+				else
+			{
+				newtooltypes[18]="(HOME=)";
+			}
+
+			if(param.retrace)
+			{
+				strcpy(tttmp8,"RETRACE=");
+				newtooltypes[19] = strcat(tttmp8,param.retrace);
+			}
+				else
+			{
+				newtooltypes[19]="(RETRACE=)";
+			}
+
+			if(param.help)
+			{
+				strcpy(tttmp9,"HELP=");
+				newtooltypes[20] = strcat(tttmp9,param.help);
+			}
+				else
+			{
+				newtooltypes[20]="(HELP=)";
+			}
+
+			if(param.toc)
+			{
+				strcpy(tttmp10,"TOC=");
+				newtooltypes[21] = strcat(tttmp10,param.toc);
+			}
+				else
+			{
+				newtooltypes[21]="(TOC=)";
+			}
+
+			if(param.index)
+			{
+				strcpy(tttmp11,"INDEX=");
+				newtooltypes[22] = strcat(tttmp11,param.index);
+			}
+				else
+			{
+				newtooltypes[22]="(INDEX=)";
+			}
+
+			if(param.next)
+			{
+				strcpy(tttmp12,"NEXT=");
+				newtooltypes[23] = strcat(tttmp12,param.next);
+			}
+				else
+			{
+				newtooltypes[23]="(NEXT=)";
+			}
+
+			if(param.prev)
+			{
+				strcpy(tttmp13,"PREV=");
+				newtooltypes[24] = strcat(tttmp13,param.prev);
+			}
+				else
+			{
+				newtooltypes[24]="(PREV=)";
+			}
+
+			if(param.findurl)
+			{
+				strcpy(tttmp14,"SEARCHURL=");
+				newtooltypes[25] = strcat(tttmp14,param.findurl);
+			}
+				else
+			{
+				newtooltypes[25]="(SEARCHURL=)";
+			}
+
+			if(param.homeurl)
+			{
+				strcpy(tttmp15,"HOMEURL=");
+				newtooltypes[26] = strcat(tttmp15,param.homeurl);
+			}
+				else
+			{
+				newtooltypes[26]="(HOMEURL=)";
+			}
+
+			if(param.linkadd)
+			{
+				strcpy(tttmp18,"LINKADD=");
+				newtooltypes[27] = strcat(tttmp18,param.linkadd);
+			}
+				else
+			{
+				newtooltypes[27]="(LINKADD=)";
+			}
+
+			if(param.nohtml) newtooltypes[28] = "NOHTML";
+								else newtooltypes[28] = "(NOHTML)";
+
+			if(param.singlefile) newtooltypes[29] = "SINGLEFILE";
+								else newtooltypes[29] = "(SINGLEFILE)";
+
+			for(i=0;i<7;i++)
+			{
+				newtooltypes[30+i] = AllocVec(100,MEMF_CLEAR);
+				sprintf(newtooltypes[30+i],"COLOUR%d=%06lx",i,param.colours[i]);
+			}
+
+			newtooltypes[37] = AllocVec(100,MEMF_CLEAR);
+			sprintf(newtooltypes[37],"INDENT=%d",param.lindent);
+
+			if(param.dotdotslash) newtooltypes[38] = "PARENTEXTLINKS";
+								else newtooltypes[38] = "(PARENTEXTLINKS)";
+
+			if(param.numberlines) newtooltypes[39] = "NUMBERLINES";
+								else newtooltypes[39] = "(NUMBERLINES)";
+
+		if(!def)
+		{
+
+			if(param.to)
+			{
+				strcpy(tttmp16,"TO=");
+				newtooltypes[40] = strcat(tttmp16,param.to);
+			}
+				else
+			{
+				newtooltypes[40]="(TO=)";
+			}
+
+			if(param.from)
+			{
+				strcpy(tttmp17,"FILE=");
+				newtooltypes[41] = strcat(tttmp17,param.from);
+			}
+				else
+			{
+				newtooltypes[41]="(FILE=)";
+			}
+
+			dobj->do_DefaultTool = defaulttool;
+			dobj->do_Type = WBPROJECT;
+
+		}
+		else
+		{
+			newtooltypes[40]=NULL;
+			newtooltypes[41]=NULL;
+		}
+
+
+			newtooltypes[42] = NULL;
+			dobj->do_ToolTypes = (STRPTR *)&newtooltypes;
+			PutIconTags(fname,dobj,NULL); //			PutDiskObject(fname,dobj); // PutDiskObject(wbarg->wa_Name,dobj);
+			dobj->do_ToolTypes=(STRPTR *)oldtooltypes;
+			dobj->do_DefaultTool=olddefaulttool;
+			dobj->do_Type = oldtype;
+			FreeDiskObject(dobj);
+		}
+
+			for(i=0;i<8;i++)
+			{
+				FreeVec(newtooltypes[30+i]);
+			}
+// if(olddir!=-1) CurrentDir(olddir);
+
+}
+
+int saveas()
+{
+	BPTR fp;
+	int t;
+	char *filename[2048];
+	char guidemlcmd[4096];
+	struct FileRequester *req;
+	struct TagItem asltags[] = {ASLFR_TitleText,(ULONG)"Save As...",
+                             ASLFR_InitialShowVolumes,TRUE,
+                             ASLFR_DoSaveMode,TRUE,TAG_DONE};
+
+	req = (struct FileRequester *)AllocAslRequest(ASL_FileRequest,NULL);
+	t = AslRequest(req,asltags);
+
+	if (t==FALSE)
+   {
+		// user cancelled
+		return(0);
+	}
+
+	strcpy((STRPTR)filename,req->fr_Drawer);
+	AddPart((STRPTR)filename,req->fr_File,2048);
+
+	FreeAslRequest(req);
+
+	fp = Open((STRPTR)filename,MODE_NEWFILE);
+
+	strcpy(guidemlcmd,"guideml \"");
+	if(param.from) strcat(guidemlcmd,param.from);
+	if(param.from) strcat(guidemlcmd,"\" ");
+	if(param.to) strcat(guidemlcmd,"TO=\"");
+	if(param.to) strcat(guidemlcmd,param.to);
+	if(param.to) strcat(guidemlcmd,"\" ");
+	if(param.homeurl) strcat(guidemlcmd,"URL=\"");
+	if(param.homeurl) strcat(guidemlcmd,param.homeurl);
+	if(param.homeurl) strcat(guidemlcmd,"\" ");
+	if(param.prev) strcat(guidemlcmd,"PREV=\"");
+	if(param.prev) strcat(guidemlcmd,param.prev);
+	if(param.prev) strcat(guidemlcmd,"\" ");
+	if(param.next) strcat(guidemlcmd,"NEXT=\"");
+	if(param.next) strcat(guidemlcmd,param.next);
+	if(param.next) strcat(guidemlcmd,"\" ");
+	if(param.index) strcat(guidemlcmd,"INDEX=\"");
+	if(param.index) strcat(guidemlcmd,param.index);
+	if(param.index) strcat(guidemlcmd,"\" ");
+	if(param.toc) strcat(guidemlcmd,"TOC=\"");
+	if(param.toc) strcat(guidemlcmd,param.toc);
+	if(param.toc) strcat(guidemlcmd,"\" ");
+	if(param.help) strcat(guidemlcmd,"HELP=\"");
+	if(param.help) strcat(guidemlcmd,param.help);
+	if(param.help) strcat(guidemlcmd,"\" ");
+	if(param.retrace) strcat(guidemlcmd,"RETRACE=\"");
+	if(param.retrace) strcat(guidemlcmd,param.retrace);
+	if(param.retrace) strcat(guidemlcmd,"\" ");
+	if(param.home) strcat(guidemlcmd,"HOME=\"");
+	if(param.home) strcat(guidemlcmd,param.home);
+	if(param.home) strcat(guidemlcmd,"\" ");
+	if(param.find) strcat(guidemlcmd,"FIND=\"");
+	if(param.find) strcat(guidemlcmd,param.find);
+	if(param.find) strcat(guidemlcmd,"\" ");
+	if(param.bar) strcat(guidemlcmd,"BAR=\"");
+	if(param.bar) strcat(guidemlcmd,param.bar);
+	if(param.bar) strcat(guidemlcmd,"\" ");
+	if(param.bodyext) strcat(guidemlcmd,"BODY=\"");
+	if(param.bodyext) strcat(guidemlcmd,param.bodyext);
+	if(param.bodyext) strcat(guidemlcmd,"\" ");
+	if(param.htmlheadf) strcat(guidemlcmd,"HTMLHEADF=\"");
+	if(param.htmlheadf) strcat(guidemlcmd,param.htmlheadf);
+	if(param.htmlheadf) strcat(guidemlcmd,"\" ");
+	if(param.htmlfootf) strcat(guidemlcmd,"HTMLFOOTF=\"");
+	if(param.htmlfootf) strcat(guidemlcmd,param.htmlfootf);
+	if(param.htmlfootf) strcat(guidemlcmd,"\" ");
+	if(param.cssurl) strcat(guidemlcmd,"CSS=\"");
+	if(param.cssurl) strcat(guidemlcmd,param.cssurl);
+	if(param.cssurl) strcat(guidemlcmd,"\" ");
+	if(param.nohtml) strcat(guidemlcmd,"NOHTML ");
+	if(param.images) strcat(guidemlcmd,"IMG ");
+	if(param.footer) strcat(guidemlcmd,"FTR ");
+	if(param.linkadd) strcat(guidemlcmd,"LA=\"");
+	if(param.linkadd) strcat(guidemlcmd,param.linkadd);
+	if(param.linkadd) strcat(guidemlcmd,"\" ");
+	if(param.nolink) strcat(guidemlcmd,"NL ");
+	if(param.noemail) strcat(guidemlcmd,"NE ");
+	if(param.msdos) strcat(guidemlcmd,"MSDOS ");
+	if(param.singlefile) strcat(guidemlcmd,"SF ");
+	if(param.dotdotslash) strcat(guidemlcmd,"PEL ");
+	if(param.numberlines) strcat(guidemlcmd,"LN ");
+	if(param.nonavbar) strcat(guidemlcmd,"NONAVBAR ");
+	if(param.moznav) strcat(guidemlcmd,"MOZNAV ");
+	if(param.showall) strcat(guidemlcmd,"SHOWALL ");
+	if(param.wordwrap) strcat(guidemlcmd,"WORDWRAP ");
+	if(param.smartwrap) strcat(guidemlcmd,"SMARTWRAP ");
+	if(param.varwidth) strcat(guidemlcmd,"VARWIDTH ");
+	if(param.noauto) strcat(guidemlcmd,"NOAUTO ");
+	strcat(guidemlcmd,"\n");
+
+
+	FPuts(fp,guidemlcmd);
+
+	Close(fp);
+
+	savetooltypes((STRPTR)filename,0);
+}
+
+
+void ui()
+{
+	long i=0; // temp variable
+	struct List optlist;
+	struct List navoptlist;
+	struct List imgoptlist;
+	struct List linkoptlist;
+	struct List tablist;
+    struct MsgPort *AppPort, *appwinport;
+	struct AppWindow *appwin = NULL;
+	struct AppMessage *appwinmsg;
+	struct WBArg *appwinargs;
+    struct Window *windows[WID_LAST];
+    Object *objects[OID_LAST];
+
+	struct Screen *scrn = NULL;
+	struct Hook aslhookfunc;
+
+	aslhookfunc.h_Entry = &AslGuideHook;
+	aslhookfunc.h_SubEntry = NULL;
+	aslhookfunc.h_Data = NULL;
+
+	UBYTE *opts[] = {"Auto","Wordwrap","Smartwrap","None",NULL};
+	UBYTE *navopts[] = {"Header","Both","None",NULL};
+	UBYTE *linkopts[] = {"Convert All","Not Email","Email Only","None",NULL};
+	UBYTE *imgopts[] = {"Text","Images",NULL};
+	UBYTE *tabs[] = {"Convert","Options","NavBar",NULL};
+		struct Menu *menustrip;
+	UWORD menunum,itemnum,subnum; //menusel;
+	struct MenuItem *item;
+	int wrapm =0;
+	int navm=0;
+	int linkm=0;
+
+if(param.noauto) wrapm = 3;
+if(param.wordwrap) wrapm = 1;
+if(param.smartwrap) wrapm = 2;
+if(!param.noauto) wrapm = 0;
+
+if(param.footer) navm = 1;
+if(param.nonavbar) navm=2;
+
+if(param.noemail) linkm=1;
+if(param.nolink) linkm=linkm+2;
+
+make_list(&optlist,opts);
+make_list(&navoptlist,navopts);
+make_list(&imgoptlist,imgopts);
+make_list(&linkoptlist,linkopts);
+maketablist(&tablist,tabs);
+
+if(scrn = LockPubScreen(NULL)) UnlockPubScreen(NULL,scrn);
+
+    if ( AppPort = CreateMsgPort() )
+    {
+        /* Create the window object.
+         */
+        objects[OID_MAIN] = WindowObject,
+            WA_ScreenTitle, VERS " (" DATE ")",
+            WA_Title, "GuideML",
+            WA_Activate, TRUE,
+            WA_DepthGadget, TRUE,
+            WA_DragBar, TRUE,
+            WA_CloseGadget, TRUE,
+            WA_SizeGadget, TRUE,
+            WA_SmartRefresh,TRUE,
+            WA_IDCMP,IDCMP_MENUPICK,
+            WINDOW_IconifyGadget, FALSE,
+            WINDOW_IconTitle, "GuideML",
+            WINDOW_AppPort, AppPort,
+            WINDOW_Position, WPOS_CENTERMOUSE,
+            WINDOW_ParentGroup, gadgets[GID_MAIN] = VGroupObject,
+                LAYOUT_SpaceOuter, TRUE,
+                LAYOUT_AddChild, gadgets[GID_TABS] = ClickTabObject,
+                	GA_ID, GID_TABS,
+                  GA_RelVerify, TRUE,
+                  CLICKTAB_Labels,&tablist,
+	              	CLICKTAB_PageGroup, PageObject,
+                		PAGE_Add,LayoutObject,
+                			LAYOUT_AddChild,VGroupObject,
+									LAYOUT_SpaceOuter,TRUE,
+                				LAYOUT_AddChild, gadgets[GID_FILE] = GetFileObject,
+                    				GA_ID, GID_FILE,
+                    				GA_RelVerify, TRUE,
+                    				GETFILE_TitleText,"GuideML",
+										GETFILE_ReadOnly,TRUE,
+										GETFILE_FullFile,param.from,
+										GETFILE_FilterFunc,&aslhookfunc,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "_Input File",
+                    			LabelEnd,
+                				CHILD_NominalSize, TRUE,
+                				LAYOUT_AddChild, gadgets[GID_TO] = GetFileObject,
+                    				GA_ID, GID_TO,
+                    				GA_RelVerify, TRUE,
+                    				GETFILE_TitleText,"GuideML",
+										GETFILE_DoSaveMode,TRUE,
+										GETFILE_DrawersOnly,TRUE,
+										GETFILE_ReadOnly,TRUE,
+										GETFILE_Drawer,param.to,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "_Output Path",
+                    			LabelEnd,
+                				CHILD_NominalSize, TRUE,
+                				LAYOUT_AddChild, gadgets[GID_HOMEURL] = StringObject,
+                    				GA_ID, GID_HOMEURL,
+                    				GA_RelVerify, TRUE,
+                    				STRINGA_TextVal,param.homeurl,
+                    				STRINGA_MaxChars,100,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "_Home URL",
+                    			LabelEnd,
+                				CHILD_NominalSize, TRUE,
+                				LAYOUT_AddChild, gadgets[GID_FINDURL] = StringObject,
+                    				GA_ID, GID_FINDURL,
+                    				GA_RelVerify, TRUE,
+                    				STRINGA_TextVal,param.findurl,
+                    				STRINGA_MaxChars,100,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "_Search URL",
+                    			LabelEnd,
+                				CHILD_NominalSize, TRUE,
+                				LAYOUT_AddChild, gadgets[GID_CSS] = StringObject,
+                    				GA_ID, GID_CSS,
+                    				GA_RelVerify, TRUE,
+                    				STRINGA_TextVal,param.cssurl,
+                    				STRINGA_MaxChars,100,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "CSS _URL",
+                    			LabelEnd,
+                				CHILD_NominalSize, TRUE,
+                				LAYOUT_AddChild, gadgets[GID_LA] = StringObject,
+                    				GA_ID, GID_LA,
+                    				GA_RelVerify, TRUE,
+                    				STRINGA_TextVal,param.linkadd,
+                    				STRINGA_MaxChars,100,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "_Link Prefix",
+                    			LabelEnd,
+                				CHILD_NominalSize, TRUE,
+                				LAYOUT_AddChild, gadgets[GID_BODY] = StringObject,
+                    				GA_ID, GID_BODY,
+                    				GA_RelVerify, TRUE,
+                    				STRINGA_TextVal,param.bodyext,
+                    				STRINGA_MaxChars,100,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "_Body Attribs",
+                    			LabelEnd,
+                				CHILD_NominalSize, TRUE,
+                				LAYOUT_AddChild, gadgets[GID_HTMLHEADF] = GetFileObject,
+                    				GA_ID, GID_HTMLHEADF,
+                    				GA_RelVerify, TRUE,
+                    				GETFILE_TitleText,"GuideML",
+										GETFILE_Pattern,"#?.(s|%)htm(l|%)",
+										GETFILE_DoPatterns,TRUE,
+										GETFILE_ReadOnly,TRUE,
+										GETFILE_FullFile,param.htmlheadf,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "HTML H_eader",
+                    			LabelEnd,
+                				LAYOUT_AddChild, gadgets[GID_HTMLFOOTF] = GetFileObject,
+                    				GA_ID, GID_HTMLFOOTF,
+                    				GA_RelVerify, TRUE,
+                    				GETFILE_TitleText,"GuideML",
+										GETFILE_Pattern,"#?.(s|%)htm(l|%)",
+										GETFILE_DoPatterns,TRUE,
+										GETFILE_ReadOnly,TRUE,
+										GETFILE_FullFile,param.htmlfootf,
+                				End,
+                    			CHILD_Label, LabelObject,
+                        		LABEL_Text, "HTML _Footer",
+                    			LabelEnd,
+
+								LayoutEnd,
+							LayoutEnd,
+                		PAGE_Add,LayoutObject,
+	               		LAYOUT_AddChild,VGroupObject,
+               				LAYOUT_AddChild,HGroupObject,
+	  		               		LAYOUT_AddChild,VGroupObject,
+											LAYOUT_SpaceOuter,TRUE,
+		                				LAYOUT_AddChild, gadgets[GID_WRAP] = ChooserObject,
+                    						GA_ID, GID_WRAP,
+                  		  				GA_RelVerify, TRUE,
+						                  CHOOSER_PopUp,TRUE,
+      		      				      CHOOSER_Labels,&optlist,
+		  				                  CHOOSER_Selected,wrapm,
+            			        			CHOOSER_AutoFit,TRUE,
+                						ChooserEnd,
+                  		  			CHILD_Label, LabelObject,
+            		            		LABEL_Text, "_Wrap mode",
+      		              			LabelEnd,
+		                				CHILD_NominalSize, TRUE,
+
+
+
+		                				LAYOUT_AddChild, gadgets[GID_LINKS] = ChooserObject,
+      	              					GA_ID, GID_LINKS,
+         	           					GA_RelVerify, TRUE,
+					            	      CHOOSER_PopUp,TRUE,
+            						      CHOOSER_Labels,&linkoptlist,
+  				      		            CHOOSER_Selected,linkm,
+            					        	CHOOSER_AutoFit,TRUE,
+            	    					ChooserEnd,
+         	           				CHILD_Label, LabelObject,
+      	                  			LABEL_Text, "_Links",
+	   	                 			LabelEnd,
+		                				CHILD_NominalSize, TRUE,
+
+		                				LAYOUT_AddChild, gadgets[GID_LINDENT] = SliderObject,
+      	              					GA_ID, GID_LINDENT,
+         	           					GA_RelVerify, TRUE,
+											SLIDER_Level,param.lindent,
+											SLIDER_Min,0,
+											SLIDER_Max,20,
+											SLIDER_Orientation,SLIDER_HORIZONTAL,
+											SLIDER_Ticks,9,
+											SLIDER_ShortTicks,TRUE,
+#ifdef __amigaos4__
+											SLIDER_LevelPlace,PLACETEXT_RIGHT,
+											SLIDER_LevelFormat,"%ld",
+#endif
+            	    					SliderEnd,
+         	           				CHILD_Label, LabelObject,
+      	                  			LABEL_Text, "_Indent at",
+	   	                 			LabelEnd,
+		                				CHILD_NominalSize, TRUE,
+
+		                				LAYOUT_AddChild, gadgets[GID_VARWIDTH] = CheckBoxObject,
+      	              					GA_ID, GID_VARWIDTH,
+         	           					GA_RelVerify, TRUE,
+         	           					GA_Text,"_Variable width font",
+  				      		            GA_Selected,param.varwidth,
+            					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
+            	    					CheckBoxEnd,
+		                				CHILD_NominalSize, TRUE,
+
+									LayoutEnd,
+         		     				CHILD_WeightedHeight, 0,
+
+			               		LAYOUT_AddChild,VGroupObject,
+		                				LAYOUT_AddChild, gadgets[GID_MSDOS] = CheckBoxObject,
+      	              					GA_ID, GID_MSDOS,
+         	           					GA_RelVerify, TRUE,
+         	           					GA_Text,"MS-_DOS compatible filenames",
+  				      		            GA_Selected,param.msdos,
+            					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
+            	    					CheckBoxEnd,
+		                				CHILD_NominalSize, TRUE,
+
+
+		                				LAYOUT_AddChild, gadgets[GID_NOHTML] = CheckBoxObject,
+      	              					GA_ID, GID_NOHTML,
+         	           					GA_RelVerify, TRUE,
+         	           					GA_Text,"Do not _generate HTML headers",
+  				      		            GA_Selected,param.nohtml,
+            					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
+            	    					CheckBoxEnd,
+		                				CHILD_NominalSize, TRUE,
+
+		                				LAYOUT_AddChild, gadgets[GID_SINGLEFILE] = CheckBoxObject,
+      	              					GA_ID, GID_SINGLEFILE,
+         	           					GA_RelVerify, TRUE,
+         	           					GA_Text,"Si_ngle HTML file",
+  				      		            GA_Selected,param.singlefile,
+            					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
+            	    					CheckBoxEnd,
+		                				CHILD_NominalSize, TRUE,
+
+		                				LAYOUT_AddChild, gadgets[GID_EXTLINKS] = CheckBoxObject,
+      	              					GA_ID, GID_EXTLINKS,
+         	           					GA_RelVerify, TRUE,
+         	           					GA_Text,"Prepend _external links with ../",
+  				      		            GA_Selected,param.dotdotslash,
+            					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
+            	    					CheckBoxEnd,
+		                				CHILD_NominalSize, TRUE,
+
+		                				LAYOUT_AddChild, gadgets[GID_LINENUMBERS] = CheckBoxObject,
+      	              					GA_ID, GID_LINENUMBERS,
+         	           					GA_RelVerify, TRUE,
+         	           					GA_Text,"_Number lines in HTML",
+  				      		            GA_Selected,param.numberlines,
+            					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
+            	    					CheckBoxEnd,
+		                				CHILD_NominalSize, TRUE,
+									LayoutEnd,
+								LayoutEnd,
+          		     			CHILD_WeightedHeight, 0,
+#ifdef __amigaos4__
+				               	LAYOUT_AddChild,HGroupObject,
+									LAYOUT_BevelStyle,BVS_GROUP,
+									LAYOUT_Label,"Colours",
+
+				               	LAYOUT_AddChild,VGroupObject,
+	   	             				LAYOUT_AddChild, gadgets[GID_CTEXT] = GetColorObject,
+   	   	              				GA_ID, GID_CTEXT,
+      	   	           				GA_RelVerify, TRUE,
+										GETCOLOR_Screen,scrn,
+										GETCOLOR_TitleText,"Text",
+										GETCOLOR_Color,param.colours[0],
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "_Text",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+
+	   	             				LAYOUT_AddChild, gadgets[GID_CSHINE] = GetColorObject,
+   	   	              				GA_ID, GID_CSHINE,
+      	   	           				GA_RelVerify, TRUE,
+										GETCOLOR_Screen,scrn,
+										GETCOLOR_TitleText,"Shine",
+										GETCOLOR_Color,param.colours[1],
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "_Shine",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+	   	             				LAYOUT_AddChild, gadgets[GID_CSHADOW] = GetColorObject,
+   	   	              				GA_ID, GID_CSHADOW,
+      	   	           				GA_RelVerify, TRUE,
+										GETCOLOR_Screen,scrn,
+										GETCOLOR_TitleText,"Shadow",
+										GETCOLOR_Color,param.colours[2],
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "Shado_w",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+
+	   	             				LAYOUT_AddChild, gadgets[GID_CFILL] = GetColorObject,
+   	   	              				GA_ID, GID_CFILL,
+      	   	           				GA_RelVerify, TRUE,
+										GETCOLOR_Screen,scrn,
+										GETCOLOR_TitleText,"Fill",
+										GETCOLOR_Color,param.colours[3],
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "_Fill",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+								LayoutEnd,
+       		     					CHILD_WeightedHeight, 0,
+				               	LAYOUT_AddChild,VGroupObject,
+
+	   	             				LAYOUT_AddChild, gadgets[GID_CFILLTEXT] = GetColorObject,
+   	   	              				GA_ID, GID_CFILLTEXT,
+      	   	           				GA_RelVerify, TRUE,
+										GETCOLOR_Screen,scrn,
+										GETCOLOR_TitleText,"F_illText",
+										GETCOLOR_Color,param.colours[4],
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "F_illText",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+
+	   	             				LAYOUT_AddChild, gadgets[GID_CBACKGROUND] = GetColorObject,
+   	   	              				GA_ID, GID_CBACKGROUND,
+      	   	           				GA_RelVerify, TRUE,
+										GETCOLOR_Screen,scrn,
+										GETCOLOR_TitleText,"Background",
+										GETCOLOR_Color,param.colours[5],
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "_Background",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+	   	             				LAYOUT_AddChild, gadgets[GID_CHIGHLIGHT] = GetColorObject,
+   	   	              				GA_ID, GID_CHIGHLIGHT,
+      	   	           				GA_RelVerify, TRUE,
+										GETCOLOR_Screen,scrn,
+										GETCOLOR_TitleText,"_Highlight",
+										GETCOLOR_Color,param.colours[6],
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "_Highlight",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+										LayoutEnd,
+	       		     					CHILD_WeightedHeight, 0,
+									LayoutEnd,
+       		     					CHILD_WeightedHeight, 0,
+#endif
+								LayoutEnd,
+							LayoutEnd,
+
+		               		PAGE_Add,LayoutObject,
+	    		           		LAYOUT_AddChild,HGroupObject,
+	    		           			LAYOUT_AddChild,VGroupObject,
+									LAYOUT_BevelStyle,BVS_GROUP,
+									LAYOUT_Label,"Labels",
+   		             				LAYOUT_AddChild, gadgets[GID_PREV] = StringObject,
+      		              				GA_ID, GID_PREV,
+         		           				GA_RelVerify, TRUE,
+            		        				STRINGA_TextVal,param.prev,
+               		     				STRINGA_MaxChars,100,
+                						End,
+                    					CHILD_Label, LabelObject,
+                        				LABEL_Text, "_Previous",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+	   	             				LAYOUT_AddChild, gadgets[GID_NEXT] = StringObject,
+   	   	              				GA_ID, GID_NEXT,
+      	   	           				GA_RelVerify, TRUE,
+         	   	        				STRINGA_TextVal,param.next,
+            	   	     				STRINGA_MaxChars,100,
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "Nex_t",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+	   	             				LAYOUT_AddChild, gadgets[GID_INDEX] = StringObject,
+   	   	              				GA_ID, GID_INDEX,
+      	   	           				GA_RelVerify, TRUE,
+         	   	        				STRINGA_TextVal,param.index,
+            	   	     				STRINGA_MaxChars,100,
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "Inde_x",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+   	             					LAYOUT_AddChild, gadgets[GID_TOC] = StringObject,
+	      	              				GA_ID, GID_TOC,
+   	      	           				GA_RelVerify, TRUE,
+      	      	        				STRINGA_TextVal,param.toc,
+         	      	     				STRINGA_MaxChars,100,
+            	    					End,
+               	     				CHILD_Label, LabelObject,
+                  	      			LABEL_Text, "C_ontents",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+   		             				LAYOUT_AddChild, gadgets[GID_HELP] = StringObject,
+      		              				GA_ID, GID_HELP,
+         		           				GA_RelVerify, TRUE,
+            		        				STRINGA_TextVal,param.help,
+               		     				STRINGA_MaxChars,100,
+                						End,
+                    					CHILD_Label, LabelObject,
+                        				LABEL_Text, "H_elp",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+	   	             				LAYOUT_AddChild, gadgets[GID_RETRACE] = StringObject,
+   	   	              				GA_ID, GID_RETRACE,
+      	   	           				GA_RelVerify, TRUE,
+         	   	        				STRINGA_TextVal,param.retrace,
+            	   	     				STRINGA_MaxChars,100,
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "_Retrace",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+	   	             				LAYOUT_AddChild, gadgets[GID_HOME] = StringObject,
+   	   	              				GA_ID, GID_HOME,
+      	   	           				GA_RelVerify, TRUE,
+         	   	        				STRINGA_TextVal,param.home,
+            	   	     				STRINGA_MaxChars,100,
+               	 					End,
+                  	  				CHILD_Label, LabelObject,
+                     	   			LABEL_Text, "H_ome",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+   	             					LAYOUT_AddChild, gadgets[GID_FIND] = StringObject,
+	      	              				GA_ID, GID_FIND,
+   	      	           				GA_RelVerify, TRUE,
+      	      	        				STRINGA_TextVal,param.find,
+         	      	     				STRINGA_MaxChars,100,
+            	    					End,
+               	     				CHILD_Label, LabelObject,
+                  	      			LABEL_Text, "S_earch",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+   	             					LAYOUT_AddChild, gadgets[GID_BAR] = StringObject,
+	      	              				GA_ID, GID_BAR,
+   	      	           				GA_RelVerify, TRUE,
+      	      	        				STRINGA_TextVal,param.bar,
+         	      	     				STRINGA_MaxChars,10,
+            	    					End,
+               	     				CHILD_Label, LabelObject,
+                  	      			LABEL_Text, "_Bar",
+                    					LabelEnd,
+           		     					CHILD_NominalSize, TRUE,
+
+									LayoutEnd,
+	    		           			LAYOUT_AddChild,VGroupObject,
+
+		                				LAYOUT_AddChild, gadgets[GID_NAVBAR] = ChooserObject,
+      	              					GA_ID, GID_NAVBAR,
+         	           					GA_RelVerify, TRUE,
+					            	      CHOOSER_PopUp,TRUE,
+            						      CHOOSER_Labels,&navoptlist,
+  				      		            CHOOSER_Selected,navm,
+            					        	CHOOSER_AutoFit,TRUE,
+            	    					ChooserEnd,
+         	           				CHILD_Label, LabelObject,
+      	                  			LABEL_Text, "Pos_ition",
+	   	                 			LabelEnd,
+		                				CHILD_NominalSize, TRUE,
+
+		                				LAYOUT_AddChild, gadgets[GID_IMAGES] = ChooserObject,
+      	              					GA_ID, GID_IMAGES,
+         	           					GA_RelVerify, TRUE,
+					            	      CHOOSER_PopUp,TRUE,
+            						      CHOOSER_Labels,&imgoptlist,
+  				      		            CHOOSER_Selected,param.images,
+            					        	CHOOSER_AutoFit,TRUE,
+            	    					ChooserEnd,
+         	           				CHILD_Label, LabelObject,
+      	                  			LABEL_Text, "_Style",
+	   	                 			LabelEnd,
+		                				CHILD_NominalSize, TRUE,
+
+		                				LAYOUT_AddChild, gadgets[GID_MOZNAV] = CheckBoxObject,
+      	              					GA_ID, GID_MOZNAV,
+         	           					GA_RelVerify, TRUE,
+         	           					GA_Text,"_Mozilla site navigation bar",
+  				      		            GA_Selected,param.moznav,
+            					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
+            	    					CheckBoxEnd,
+		                				CHILD_NominalSize, TRUE,
+		                				LAYOUT_AddChild, gadgets[GID_SHOWALL] = CheckBoxObject,
+      	              					GA_ID, GID_SHOWALL,
+         	           					GA_RelVerify, TRUE,
+         	           					GA_Text,"Consistent _across pages",
+  				      		            GA_Selected,param.showall,
+            					        	CHECKBOX_TextPlace,PLACETEXT_LEFT,
+            	    					CheckBoxEnd,
+		                				CHILD_NominalSize, TRUE,
+
+									LayoutEnd,
+          		     					CHILD_WeightedHeight, 0,
+
+								LayoutEnd,
+							PageEnd,
+
+						PageEnd,
+
+       			ClickTabEnd,
+
+                LAYOUT_AddChild, HGroupObject,
+                    GA_BackFill, NULL,
+                    LAYOUT_SpaceOuter, FALSE,
+                    LAYOUT_VertAlignment, LALIGN_CENTER,
+                    LAYOUT_HorizAlignment, LALIGN_CENTER,
+		              	LAYOUT_AddChild, gadgets[GID_CONV] = ButtonObject,
+      	              	GA_ID, GID_CONV,
+         	           	GA_RelVerify, TRUE,
+            	        	GA_Text,"_Convert",
+                		ButtonEnd,
+                LayoutEnd,
+                CHILD_WeightedHeight, 0,
+            EndGroup,
+        EndWindow;
+
+
+         /*  Object creation sucessful?
+          */
+        if (objects[OID_MAIN])
+        {
+            /*  Open the window.
+             */
+            if (windows[WID_MAIN] = (struct Window *) RA_OpenWindow(objects[OID_MAIN]))
+            {
+			    if ( appwinport = CreateMsgPort() )
+				{
+					appwin = AddAppWindowA(0,0,windows[WID_MAIN],appwinport,NULL);
+				}
+
+                ULONG wait, signal, app = (1L << AppPort->mp_SigBit), appwinsig = (1L << appwinport->mp_SigBit);
+                ULONG done = FALSE;
+                ULONG result;
+                UWORD code;
+
+					menustrip = addmenu(windows[WID_MAIN]);
+
+                 /* Obtain the window wait signal mask.
+                 */
+                GetAttr(WINDOW_SigMask, objects[OID_MAIN], &signal);
+
+                /* Input Event Loop
+                 */
+                while (!done)
+                {
+                    wait = Wait( signal | SIGBREAKF_CTRL_C | app | appwinsig);
+
+							if(wait & SIGBREAKF_CTRL_C)
+								{
+                        done = TRUE;
+								}
+							else if(wait & appwinsig)
+							{
+								while(appwinmsg = (struct AppMessage *)GetMsg(appwinport))
+								{
+									switch(appwinmsg->am_Type)
+									{
+										case AMTYPE_APPWINDOW:
+											if(appwinargs = appwinmsg->am_ArgList)
+											{
+												if(appwinargs->wa_Lock)
+												{
+													NameFromLock(appwinargs->wa_Lock,ttfrom,1024);
+												}
+												AddPart(ttfrom,appwinargs->wa_Name,1024);
+												param.from=ttfrom;
+                                        		SetGadgetAttrs(gadgets[GID_FILE],windows[WID_MAIN],NULL,GETFILE_FullFile,param.from,TAG_DONE);
+											}
+										break;
+									}
+								}
+								//ReplyMsg(appwinmsg);
+							}
+							else
+								{
+                        while ( (result = RA_HandleInput(objects[OID_MAIN], &code) ) != WMHI_LASTMSG )
+                        {
+                            switch (result & WMHI_CLASSMASK)
+                            {
+                                case WMHI_CLOSEWINDOW:
+                                    windows[WID_MAIN] = NULL;
+                                    done = TRUE;
+                                    break;
+
+                                case WMHI_MENUPICK:
+                                		while (code !=MENUNULL)
+                                		{
+                                			//menusel = code;
+                                			item = ItemAddress(menustrip,code);
+                                			menunum = MENUNUM(code);
+                                			itemnum = ITEMNUM(code);
+                                			subnum = SUBNUM(code);
+
+                                			switch(menunum)
+                                			{
+                                				case 0:  // Project
+                                					switch(itemnum)
+                                					{
+
+                                						case 0: // save
+																	SetWindowPointer(windows[WID_MAIN],WA_BusyPointer,TRUE,WA_PointerDelay,TRUE,TAG_DONE);
+																 	saveas();
+																	SetWindowPointer(windows[WID_MAIN],TAG_DONE);
+                                						break;
+
+                                						case 2: // about
+
+                                							err(VERS " (" DATE ")\n\n© 1997-8 Richard Körber\nhttp://www.shredzone.de\n\n© 2001-8 Chris Young\nhttps://www.unsatisfactorysoftware.co.uk","OK",0);
+                                						break;
+
+                                						case 4: // quit
+
+					                                    windows[WID_MAIN] = NULL;
+               					                     done = TRUE;
+
+                                						break;
+
+                                					}
+                                				break;
+
+                                				case 1: // Settings
+                                					switch(itemnum)
+                                					{
+                                						case 0:
+                                						 // save defaults
+																SetWindowPointer(windows[WID_MAIN],WA_BusyPointer,TRUE,WA_PointerDelay,TRUE,TAG_DONE);
+                                						 savetooltypes(defname,1);
+																SetWindowPointer(windows[WID_MAIN],TAG_DONE);
+                                						break;
+                                					}
+                                				break;
+
+
+                                			}
+
+
+                                			code = item->NextSelect;
+                                		}
+                                		break;
+
+                                case WMHI_GADGETUP:
+                                    switch (result & WMHI_GADGETMASK)
+                                    {
+#ifdef __amigaos4__
+                                        case GID_CTEXT:
+                                        	if(DoMethod((Object *)gadgets[GID_CTEXT],GCOLOR_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETCOLOR_Color,gadgets[GID_CTEXT],(ULONG*)&param.colours[0]);
+                                        	}
+
+                                          break;
+                                        case GID_CSHINE:
+                                        	if(DoMethod((Object *)gadgets[GID_CSHINE],GCOLOR_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETCOLOR_Color,gadgets[GID_CSHINE],(ULONG*)&param.colours[1]);
+                                        	}
+
+                                          break;
+                                        case GID_CSHADOW:
+                                        	if(DoMethod((Object *)gadgets[GID_CSHADOW],GCOLOR_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETCOLOR_Color,gadgets[GID_CSHADOW],(ULONG*)&param.colours[2]);
+                                        	}
+
+                                          break;
+                                        case GID_CFILL:
+                                        	if(DoMethod((Object *)gadgets[GID_CFILL],GCOLOR_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETCOLOR_Color,gadgets[GID_CFILL],(ULONG*)&param.colours[3]);
+                                        	}
+
+                                          break;
+                                        case GID_CFILLTEXT:
+                                        	if(DoMethod((Object *)gadgets[GID_CFILLTEXT],GCOLOR_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETCOLOR_Color,gadgets[GID_CFILLTEXT],(ULONG*)&param.colours[4]);
+                                        	}
+
+                                          break;
+                                        case GID_CBACKGROUND:
+                                        	if(DoMethod((Object *)gadgets[GID_CBACKGROUND],GCOLOR_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETCOLOR_Color,gadgets[GID_CBACKGROUND],(ULONG*)&param.colours[5]);
+                                        	}
+
+                                          break;
+                                        case GID_CHIGHLIGHT:
+                                        	if(DoMethod((Object *)gadgets[GID_CHIGHLIGHT],GCOLOR_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETCOLOR_Color,gadgets[GID_CHIGHLIGHT],(ULONG*)&param.colours[6]);
+                                        	}
+
+                                          break;
+#endif
+
+                                        case GID_FILE:
+                                        	if(DoMethod((Object *)gadgets[GID_FILE],GFILE_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETFILE_FullFile,gadgets[GID_FILE],(ULONG*)&param.from);
+                                        	}
+
+                                          break;
+
+                                        case GID_TO:
+                                        	if(DoMethod((Object *)gadgets[GID_TO],GFILE_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETFILE_Drawer,gadgets[GID_TO],(ULONG*)&param.to);
+                                        	}
+
+                                          break;
+                                        case GID_HTMLHEADF:
+                                        	if(DoMethod((Object *)gadgets[GID_HTMLHEADF],GFILE_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETFILE_FullFile,gadgets[GID_HTMLHEADF],(ULONG*)&param.htmlheadf);
+                                        	}
+                                      		if(param.htmlheadf)
+                                      			{
+                                      				if(strlen(param.htmlheadf)==0) param.htmlheadf=0;
+                                      			}
+
+                                          break;
+                                        case GID_HTMLFOOTF:
+                                        	if(DoMethod((Object *)gadgets[GID_HTMLFOOTF],GFILE_REQUEST,windows[WID_MAIN]))
+                                        	{
+                                        		GetAttr(GETFILE_FullFile,gadgets[GID_HTMLFOOTF],(ULONG*)&param.htmlfootf);
+                                        	}
+                                      		if(param.htmlfootf)
+                                      			{
+                                      				if(strlen(param.htmlfootf)==0) param.htmlfootf=0;
+															}
+                                          break;
+
+                                        case GID_BODY:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_BODY],(ULONG*)&param.bodyext);
+                                      		if(strlen(param.bodyext)==0) param.bodyext=0;
+                                        break;
+                                        case GID_CSS:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_CSS],(ULONG*)&param.cssurl);
+                                      		if(strlen(param.cssurl)==0) param.cssurl=0;
+                                        break;
+                                        case GID_LA:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_LA],(ULONG*)&param.linkadd);
+                                      		if(strlen(param.linkadd)==0) param.linkadd=0;
+                                        break;
+                                        case GID_HOMEURL:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_HOMEURL],(ULONG*)&param.homeurl);
+                                      		if(strlen(param.homeurl)==0) param.homeurl=0;
+                                        break;
+
+                                        case GID_FINDURL:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_FINDURL],(ULONG*)&param.findurl);
+                                      		if(strlen(param.findurl)==0) param.findurl=0;
+                                        break;
+
+                                        case GID_RETRACE:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_RETRACE],(ULONG*)&param.retrace);
+                                      		if(strlen(param.retrace)==0) param.retrace=0;
+                                        break;
+
+                                        case GID_PREV:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_PREV],(ULONG*)&param.prev);
+                                      		if(strlen(param.prev)==0) param.prev=0;
+                                        break;
+
+                                        case GID_NEXT:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_NEXT],(ULONG*)&param.next);
+                                      		if(strlen(param.next)==0) param.next=0;
+                                        break;
+
+                                        case GID_INDEX:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_INDEX],(ULONG*)&param.index);
+                                      		if(strlen(param.index)==0) param.index=0;
+                                        break;
+
+                                        case GID_TOC:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_TOC],(ULONG*)&param.toc);
+                                      		if(strlen(param.toc)==0) param.toc=0;
+                                        break;
+
+                                        case GID_HELP:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_HELP],(ULONG*)&param.help);
+                                      		if(strlen(param.help)==0) param.help=0;
+                                        break;
+
+                                        case GID_FIND:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_FIND],(ULONG*)&param.find);
+                                      		if(strlen(param.find)==0) param.find=0;
+                                        break;
+
+                                        case GID_HOME:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_HOME],(ULONG*)&param.home);
+                                      		if(strlen(param.home)==0) param.home=0;
+                                        break;
+
+                                        case GID_BAR:
+                                      		GetAttr(STRINGA_TextVal,gadgets[GID_BAR],(ULONG*)&param.bar);
+                                        break;
+
+                                        case GID_CONV:
+                                        	if(!param.from)
+                                        		{
+                                        			err("You must select an AmigaGuide\ndocument to convert!","OK",0);
+                                        		}
+                                        		else
+                                        		{
+																SetWindowPointer(windows[WID_MAIN],WA_BusyPointer,TRUE,TAG_DONE);
+                                        			main(1,0);
+		  														param.prev = textlabs.prev;
+  																param.next = textlabs.next;
+  																param.index = textlabs.index;
+  																param.toc = textlabs.toc;
+  																param.home = textlabs.home;
+  																param.help = textlabs.help;
+  																param.find = textlabs.find;
+  																param.retrace = textlabs.retrace;
+		  														param.bar = textlabs.bar;
+																SetWindowPointer(windows[WID_MAIN],TAG_DONE);
+                                        		}
+                                        break;
+
+                                        case GID_WRAP:
+
+														switch(code)
+														{
+															case 0:
+																param.noauto=0;
+																param.wordwrap=0;
+																param.smartwrap=0;
+																SetAttrs(gadgets[GID_VARWIDTH],GA_Disabled,FALSE,TAG_DONE);
+													  			RethinkLayout(gadgets[GID_VARWIDTH],windows[WID_MAIN],NULL,TRUE);
+															break;
+
+															case 1:
+																param.wordwrap=TRUE;
+																param.smartwrap=FALSE;
+																param.noauto=TRUE;
+																SetAttrs(gadgets[GID_VARWIDTH],GA_Disabled,FALSE,TAG_DONE);
+													  			RethinkLayout(gadgets[GID_VARWIDTH],windows[WID_MAIN],NULL,TRUE);
+															break;
+
+															case 2:
+																param.wordwrap=FALSE;
+																param.smartwrap=TRUE;
+																param.noauto=TRUE;
+																SetAttrs(gadgets[GID_VARWIDTH],GA_Disabled,FALSE,TAG_DONE);
+													  			RethinkLayout(gadgets[GID_VARWIDTH],windows[WID_MAIN],NULL,TRUE);
+															break;
+
+															case 3:
+																param.wordwrap=FALSE;
+																param.smartwrap=FALSE;
+																param.noauto=TRUE;
+																SetAttrs(gadgets[GID_VARWIDTH],GA_Disabled,TRUE,TAG_DONE);
+													  			RethinkLayout(gadgets[GID_VARWIDTH],windows[WID_MAIN],NULL,TRUE);
+															break;
+
+														}
+
+                                        break;
+
+                                        case GID_VARWIDTH:
+                                        	param.varwidth=code;
+                                        break;
+
+                                        case GID_LINDENT:
+                                        	param.lindent=code;
+                                        break;
+
+                                        case GID_LINENUMBERS:
+                                        	param.numberlines=code;
+                                        break;
+
+                                        case GID_SINGLEFILE:
+                                        	param.singlefile=code;
+											if(param.singlefile)
+											{
+												SetAttrs(gadgets[GID_LA],GA_Disabled,TRUE,TAG_DONE);
+												SetAttrs(gadgets[GID_EXTLINKS],GA_Disabled,TRUE,TAG_DONE);
+												//RethinkLayout(gadgets[GID_LA],windows[WID_MAIN],NULL,TRUE);
+											}
+											else
+											{
+												SetAttrs(gadgets[GID_LA],GA_Disabled,FALSE,TAG_DONE);
+												SetAttrs(gadgets[GID_EXTLINKS],GA_Disabled,FALSE,TAG_DONE);
+												//RethinkLayout(gadgets[GID_LA],windows[WID_MAIN],NULL,TRUE);
+											}
+											RethinkLayout(gadgets[GID_EXTLINKS],windows[WID_MAIN],NULL,TRUE);
+                                        break;
+
+                                        case GID_EXTLINKS:
+                                        	param.dotdotslash=code;
+                                        break;
+
+                                        case GID_NOHTML:
+                                        	param.nohtml=code;
+                                        break;
+
+                                        case GID_NAVBAR:
+
+														switch(code)
+														{
+															case 0:
+																param.nonavbar=FALSE;
+																param.footer=FALSE;
+																SetAttrs(gadgets[GID_IMAGES],GA_Disabled,FALSE,TAG_DONE);
+													  			RethinkLayout(gadgets[GID_IMAGES],windows[WID_MAIN],NULL,TRUE);
+															break;
+
+															case 1:
+																param.nonavbar=FALSE;
+																param.footer=TRUE;
+																SetAttrs(gadgets[GID_IMAGES],GA_Disabled,FALSE,TAG_DONE);
+													  			RethinkLayout(gadgets[GID_IMAGES],windows[WID_MAIN],NULL,TRUE);
+															break;
+
+															case 2:
+																param.nonavbar=TRUE;
+																param.footer=FALSE;
+																SetAttrs(gadgets[GID_IMAGES],GA_Disabled,TRUE,TAG_DONE);
+													  			RethinkLayout(gadgets[GID_IMAGES],windows[WID_MAIN],NULL,TRUE);
+															break;
+														}
+
+                                        break;
+
+                                        case GID_LINKS:
+
+														switch(code)
+														{
+															case 0:
+																param.noemail=FALSE;
+																param.nolink=FALSE;
+															break;
+
+															case 1:
+																param.noemail=TRUE;
+																param.nolink=FALSE;
+															break;
+
+															case 2:
+																param.noemail=FALSE;
+																param.nolink=TRUE;
+															break;
+
+															case 3:
+																param.noemail=TRUE;
+																param.nolink=TRUE;
+															break;
+														}
+                                        break;
+
+                                        case GID_IMAGES:
+                                        	param.images=code;
+                                        break;
+
+                                        case GID_MOZNAV:
+                                        	param.moznav=code;
+                                        break;
+
+                                        case GID_SHOWALL:
+                                        	param.showall=code;
+                                        break;
+
+                                        case GID_MSDOS:
+                                        	param.msdos=code;
+                                        break;
+
+                                    }
+                                    break;
+
+                                case WMHI_ICONIFY:
+                                    RA_Iconify(objects[OID_MAIN]);
+                                    windows[WID_MAIN] = NULL;
+                                    break;
+
+                                case WMHI_UNICONIFY:
+                                    windows[WID_MAIN] = (struct Window *) RA_OpenWindow(objects[OID_MAIN]);
+
+                                    if (windows[WID_MAIN])
+                                    {
+                                        GetAttr(WINDOW_SigMask, objects[OID_MAIN], &signal);
+                                    }
+                                    else
+                                    {
+                                        done = TRUE;    // error re-opening window!
+                                    }
+                                     break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            /* Disposing of the window object will also close the window if it is
+             * already opened, and it will dispose of the layout object attached to it.
+             */
+            DisposeObject(objects[OID_MAIN]);
+        }
+
+		RemoveAppWindow(appwin);
+        DeleteMsgPort(appwinport);
+
+        DeleteMsgPort(AppPort);
+    }
+free_list(&optlist);
+freetablist(&tablist);
+FreeMenus(menustrip); // menu
+cleanup(0);
+
+/*
+    closelibs();
+
+    return(0);
+*/
+ }
+
+
+void free_list(struct List *list)
+{
+	struct Node *node,*nextnode;
+	node = list ->lh_Head;
+	while (nextnode = node->ln_Succ)
+	{
+		FreeChooserNode(node);
+		node=nextnode;
+	}
+	NewList(list);
+}
+
+void freetablist(struct List *list)
+{
+	struct Node *node,*nextnode;
+	node = list ->lh_Head;
+	while (nextnode = node->ln_Succ)
+	{
+		FreeClickTabNode(node);
+		node=nextnode;
+	}
+	NewList(list);
+}
+
+BOOL make_list(struct List *list, UBYTE **labels1)
+{
+	struct Node *node;
+	WORD i = 0;
+	int ro=FALSE;
+
+	NewList(list);
+
+	while (*labels1)
+	{
+
+		if (node = AllocChooserNode(
+							CNA_Text, *labels1,
+							CNA_ReadOnly, ro,
+						TAG_DONE))
+		{
+			AddTail(list, node);
+		}
+		else
+			break;
+
+		labels1++;
+		i++;
+		ro=FALSE;
+	}
+	return(TRUE);
+}
+
+BOOL maketablist(struct List *list, UBYTE **labels1)
+{
+	struct Node *node;
+	WORD i = 0;
+
+	NewList(list);
+
+	while (*labels1)
+	{
+
+		if (node = AllocClickTabNode(
+							TNA_Text, *labels1,
+							TNA_Number, i,
+						TAG_DONE))
+		{
+			AddTail(list, node);
+		}
+		else
+			break;
+
+		labels1++;
+		i++;
+	}
+	return(TRUE);
+}
+
+struct Menu *addmenu(struct Window *win)
+{
+
+
+APTR vi;
+	struct Menu *menustrip;
+	struct NewMenu menu[] = {
+									  {NM_TITLE,"Project"           , 0 ,0,0,0,},
+									  { NM_ITEM,"Save As..."        ,"S",0,0,0,},
+									  { NM_ITEM,NM_BARLABEL         , 0 ,0,0,0,},
+									  { NM_ITEM,"About..."          ,"A",0,0,0,},
+									  { NM_ITEM,NM_BARLABEL         , 0 ,0,0,0,},
+									  { NM_ITEM,"Quit"              ,"Q",0,0,0,},
+									  {NM_TITLE,"Settings"          , 0 ,0,0,0,},
+									  { NM_ITEM,"Save As Defaults"   ,"D",0,0,0,},
+									  {  NM_END,0,0,0,0,0,},
+									 };
+
+	menustrip = CreateMenus(menu,GTMN_FullMenu,TRUE,TAG_DONE);
+	vi = GetVisualInfoA(win->WScreen,TAG_DONE);
+	LayoutMenus(menustrip,vi,GTMN_NewLookMenus,TRUE,TAG_DONE);
+//				SetAttrs(win,WINDOW_MenuStrip,menustrip,TAG_DONE);
+  SetMenuStrip(win,menustrip);
+
+return(menustrip);
+}
+
+ void err(STRPTR errtxt,STRPTR gadgtxt,int fail)
+{
+
+	int rc;
+
+	if(wb)
+	{
+		struct EasyStruct errorreq =
+			{
+			sizeof(struct EasyStruct),
+			0,
+			"GuideML",
+			NULL,
+			NULL,
+			};
+
+			errorreq.es_TextFormat = errtxt;
+			errorreq.es_GadgetFormat = gadgtxt;
+
+		rc = EasyRequest(NULL,&errorreq,NULL);
+	}
+	else
+	{
+		printf("%s\n",errtxt);
+	}
+	if (fail) cleanup(fail);
+
+	// return(rc);
+
+
+}
+#endif
 
 void cleanup(int fail)
 {
@@ -2847,6 +5034,98 @@ void cleanup(int fail)
 	if(tthtmlheadf) FreeMem(tthtmlheadf,strlen(tthtmlheadf)+1);
 	if(tthtmlfootf) FreeMem(tthtmlfootf,strlen(tthtmlfootf)+1);
 	if(ttcss) FreeMem(ttcss,strlen(ttcss)+1);
+
+#ifndef __HAIKU__
+	if(LocaleBase) {
+		CloseLocale(locale);
+
+#ifdef __amigaos4__
+		DropInterface((struct Interface *)ILocale);
+#endif
+
+		CloseLibrary(LocaleBase);
+	}
+
+if(GadToolsBase)
+{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IGadTools);
+	#endif
+
+	CloseLibrary(GadToolsBase);
+}
+if(UtilityBase)
+{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IUtility);
+	#endif
+
+	CloseLibrary(UtilityBase);
+}
+
+     if(WindowBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IWindow);
+	#endif
+ CloseLibrary(WindowBase);
+	}
+     if(LayoutBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)ILayout);
+	#endif
+ CloseLibrary(LayoutBase);
+	}
+
+     if(ButtonBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IButton);
+	#endif
+ CloseLibrary(ButtonBase);
+	}
+
+     if(CheckBoxBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)ICheckBox);
+	#endif
+ CloseLibrary(CheckBoxBase);
+	}
+
+     if(LabelBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)ILabel);
+	#endif
+ CloseLibrary(LabelBase);
+	}
+
+     if(ChooserBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IChooser);
+	#endif
+ CloseLibrary(ChooserBase);
+	}
+
+     if(ClickTabBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IClickTab);
+	#endif
+ CloseLibrary(ClickTabBase);
+	}
+
+#ifdef __amigaos4__
+     if(GetColorBase)
+	{
+	DropInterface((struct Interface *)IGetColor);
+	 CloseLibrary(GetColorBase);
+	}
+#endif
+
 #endif
 
  exit(fail);

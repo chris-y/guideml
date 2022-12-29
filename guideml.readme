@@ -3,10 +3,13 @@ Uploader: chris@unsatisfactorysoftware.co.uk (Chris Young)
 Author:   shred@chessy.aworld.de (Richard Koerber),chris@unsatisfactorysoftware.co.uk (Chris Young)
 Type:     text/hyper
 Kurz:     AmigaGuide -> HTML-Konverter mit GUI
-Version:  3.15
-Requires: AmigaOS 3.5 or higher; OS4 version needs pre-release update 4 or newer; CLI interface may work on 2.04
+Version:  3.16
 Language: English
-Architecture: m68k-amigaos >= 3.5.0; ppc-amigaos >= 4.0.0
+Architecture: m68k-amigaos >= 3.2.0; ppc-amigaos >= 4.0.0
+
+GUI requires an AmigaOS at least 3.5 with Reaction.
+This includes 3.9 and 3.2, but not 3.1.4.
+CLI should work on 2.1.
 
 AmigaGuide to HTML file converter, with lots of features including:
 
@@ -37,6 +40,21 @@ AmigaGuide to HTML file converter, with lots of features including:
 
 
 CHANGES SINCE 3.11:
+V3.16 (01.10.2021)
+
+* Use locale.library to convert node names, this should remove accents from characters for better compatibility.  Note: Requires locale.library v38+, so command line now needs OS2.1 minimum.
+
+* Add basic support for OS3.2's \@{img command.
+
+* Fix some deprecated calls under OS4.
+
+* Fix wrong icon when saving defaults.
+
+* Fix "Main" node incorrectly being suffixed in single file HTML.
+
+* Toggled default off for Mozilla navigation bar as it is very obsolete.
+
+
 V3.15 (21.06.2008)
 
 * It is now possible to blank out navbar labels to prevent certain links from being shown.

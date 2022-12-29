@@ -1,11 +1,11 @@
 @database GuideML.guide
 @author "Chris Young"
-@(c) "© 2003-8 Unsatisfactory Software"
-@$VER: GuideML.guide 3.15 (21.06.2008)
+@(c) "© 2003-2021 Unsatisfactory Software"
+@$VER: GuideML.guide 3.16 (01.10.2021)
 @smartwrap
 
 @node main "GuideML"
-@{b}GuideML 3.15@{ub}
+@{b}GuideML 3.16@{ub}
 
 
 @{"Disclaimer  " link disclaimer} Read this first
@@ -30,11 +30,7 @@ Use of this software ("GuideML") is at your own risk, with no warranty
 expressed or implied.  I will not accept responsibility for any damage,
 loss of data or other event caused directly or indirectly by this software.
 
-This archive is distributed under the GPL.  You can check the authenticity
-of the archive by comparing the PGP signature in the Aminet .readme against
-the archive.  My public key is available from
-http://www.unsatisfactorysoftware.co.uk/ftp/pgp-keys/chris.asc
-
+This archive is distributed under the GPL.
 
 If you do not agree to the above you must delete this software and the
 distribution archive.  If you believe the archive has been tampered with
@@ -66,9 +62,9 @@ without problem.  The best thing to do is look at the
 @{b}What are the requirements?@{ub}
 
 
-You need an Amiga running AmigaOS 3.5 or newer for the GUI.  You should still
-be able to use it from the command line on AmigaOS 2.04 but I haven't tried
-this.  The code is compiled for 68020.  If your
+You need an Amiga running AmigaOS 3.2 or newer for the GUI.  You should still
+be able to use it from the command line on AmigaOS 2.1 but I haven't tried
+this.  If your
 machine does not meet the requirements, version 2.6 of GuideML should still
 be available on Aminet - http://www.aminet.net/text/hyper/guideml2.lha
 
@@ -205,7 +201,7 @@ placed.
 
 @{fg fill}Mozilla Site Navigation Bar@{fg text} - Specifies whether a Mozilla
 compatible Site Navigation Bar should be available.  This can be switched on
-and off in Mozilla in one of the menus.
+and off in Mozilla in one of the menus, if you're using a version from about 1962.
 
 
 @{fg fill}Style@{fg text} - Specifies whether the navigation bar should be
@@ -309,7 +305,7 @@ USAGE:  FILE/A                  AmigaGuide file to be converted
         PARENTEXTLInKS/S        Adds ../ to the beginning of external AmigaGuide links
         LN=NUMBERLINES          Adds line number refernces to the HTML
         NONAVBAR/S              Do not create the HTML navigation bar
-        NOMOZNAV/S              Do not create Mozilla-compatible Site Navigation Bar
+        MOZNAV/S                Create Mozilla-compatible Site Navigation Bar (obsolete)
         SHOWALL/S               Keep navbar consistent between pages
       * HTMLHEAD/K              HTML to put in front of guide text
         HTMLHEADF/K             File containing HTMLHEAD (overrides HTMLHEAD)
@@ -339,6 +335,21 @@ USAGE:  FILE/A                  AmigaGuide file to be converted
 Versions 1.x were written by Richard Körber.
 
 Versions 2.0 and up are updates by Chris Young.
+
+
+V3.16   » (01.10.2021)@{lindent 8}
+
+· Use locale.library to convert node names, this should remove accents from characters for better compatibility.  Note: Requires locale.library v38+, so command line now needs OS2.1 minimum.
+
+· Add basic support for OS3.2's \@{img command.
+
+· Fix some deprecated calls under OS4.
+
+· Fix wrong icon when saving defaults.
+
+· Fix "Main" node incorrectly being suffixed in single file HTML.
+
+· Toggled default off for Mozilla navigation bar as it is very obsolete.@{lindent 0}
 
 
 V3.15   » (21.06.2008)@{lindent 8}
@@ -658,8 +669,7 @@ Chris Young unofficially took over the development of this program in 2001
 and has been maintaining it ever since.
 
 
-Please email me at chris@unsatisfactorysoftware.co.uk with any comments or
-suggestions or visit http://www.unsatisfactorysoftware.co.uk
+Please raise bug reports at https://github.com/chris-y/guideml
 
 
 The GuideML_OS4 icon in this package was drawn by Martin Merz.  The toolbar
