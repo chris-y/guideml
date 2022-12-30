@@ -254,6 +254,14 @@ char VerStr[] = VERSTAG; //"\0$VER: GuideML "VERSIONSTR" ("VERSIONDATE")";
 #define UIPTR ULONG
 #endif
 
+static const UIPTR colour_themes[3][7] = {
+	// text      shine     shadow     fill   fill text background highlight
+	{ 0x000000, 0xffffff, 0x000000, 0x4a8abd, 0x000000, 0xcfcfcf, 0xffffff }, // AmigaGuide theme
+	{ 0x000000, 0xff4444, 0xcccccc, 0x4a8abd, 0x000000, 0xffffff, 0x4444ff }, // Light theme
+	{ 0xffffff, 0xff4444, 0xcccccc, 0x4a8abd, 0xffffff, 0x000000, 0x4444ff }, // Dark theme
+
+};
+
 struct Parameter                          /* Structure of Shell parameters */
 {
   STRPTR from;
@@ -295,6 +303,7 @@ struct Parameter                          /* Structure of Shell parameters */
   IPTR   varwidth;
   IPTR   noauto;
   UIPTR  lindent;
+  IPTR   theme;
   UIPTR  colours[7];
 }param = {NULL};
 
@@ -2699,7 +2708,7 @@ int main(int argc, char **argv)
 {
 
   struct RDArgs *args;
-  static char template[] = "FILE/A,TO/K,URL=HOMEURL/K,FINDURL=SEARCHURL/K,PREV/K,NEXT/K,INDEX/K,TOC/K,HELP/K,RETRACE/K,HOME/K,FIND=SEARCH/K,BAR/K,BODY/K,VER=VERBATIM/S,IMG=IMAGES/S,FTR=FOOTER/S,LA=LINKADD/K,NL=NOLINKS/S,NE=NOEMAIL/S,NW=NOWARN/S,MSDOS/S,SF=SINGLEFILE/S,PEL=PARENTEXTLINKS/S,LN=NUMBERLINES/S,NONAVBAR/S,MOZNAV/S,SHOWALL/S,HTMLHEAD/K,HTMLHEADF/K,HTMLFOOT/K,HTMLFOOTF/K,NOHTML/S,CSS/K,WORDWRAP/S,SMARTWRAP/S,VARWIDTH/S,NOAUTO/S,LINDENT/K/N";
+  static char template[] = "FILE/A,TO/K,URL=HOMEURL/K,FINDURL=SEARCHURL/K,PREV/K,NEXT/K,INDEX/K,TOC/K,HELP/K,RETRACE/K,HOME/K,FIND=SEARCH/K,BAR/K,BODY/K,VER=VERBATIM/S,IMG=IMAGES/S,FTR=FOOTER/S,LA=LINKADD/K,NL=NOLINKS/S,NE=NOEMAIL/S,NW=NOWARN/S,MSDOS/S,SF=SINGLEFILE/S,PEL=PARENTEXTLINKS/S,LN=NUMBERLINES/S,NONAVBAR/S,MOZNAV/S,SHOWALL/S,HTMLHEAD/K,HTMLHEADF/K,HTMLFOOT/K,HTMLFOOTF/K,NOHTML/S,CSS/K,WORDWRAP/S,SMARTWRAP/S,VARWIDTH/S,NOAUTO/S,LINDENT/K/N,THEME=NAME/K";
   BPTR fh;
   BPTR hhf;
   BPTR oldlock = (BPTR)NULL;
@@ -2754,14 +2763,6 @@ if(!wb)
   param.bar   = defbar;
   param.retrace = NULL;
 
-	param.colours[0] = 0x000000; // text
-	param.colours[1] = 0xff4444; // shine
-	param.colours[2] = 0xcccccc; // shadow
-	param.colours[3] = 0x4a8abd; // fill
-	param.colours[4] = 0x000000; // fill text
-	param.colours[5] = 0xffffff; // background
-	param.colours[6] = 0x4444ff; // highlight
-
   if(args = (struct RDArgs *)ReadArgs(template,(IPTR*)&param,NULL))
 	{
 		if(param.lindent)
@@ -2771,6 +2772,21 @@ if(!wb)
 
 		ok=1;
 	}
+
+  int theme = 0;
+  if (param.theme) {
+    if (strcmp(param.theme, "LIGHT") == 0)
+      theme = 1;
+    else if (strcmp(param.theme, "DARK") == 0)
+      theme = 2;
+  }
+
+
+  int i;
+  for (i = 0; i < 7; i++) {
+	param.colours[i] = colour_themes[theme][i];
+  }
+
 }
 
 if(ok)
@@ -2984,6 +3000,7 @@ Flush:
            "\tVARWIDTH/S\t\tDo not use fixed width font (#?WRAP only)\n"
            "\tNOAUTO/S\t\tDo not auto-detect wrap mode\n"
            "\tLINDENT/S\t\tThreshold over which @{lindent} converts to <blockquote>\n"
+           "\tTHEME=NAME/K\t\tColor theme to use (AMIGAGUIDE (default), LIGHT or DARK)\n"
 
            "\n");
   return(0);
@@ -3019,13 +3036,10 @@ param.lindent=4;
   param.bar   = defbar;
   param.retrace = NULL;
 
-	param.colours[0] = 0x000000;
-	param.colours[1] = 0xffffff;
-	param.colours[2] = 0x000000;
-	param.colours[3] = 0x4a8abd;
-	param.colours[4] = 0x000000;
-	param.colours[5] = 0xcfcfcf;
-	param.colours[6] = 0xffffff;
+  int i;
+  for (i = 0; i < 7; i++) {
+	param.colours[i] = colour_themes[0][i];
+  }
 
 param.nowarn = TRUE;
 

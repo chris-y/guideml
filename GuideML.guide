@@ -318,6 +318,7 @@ USAGE:  FILE/A                  AmigaGuide file to be converted
         VARWIDTH/S              Do not use fixed width font (#?WRAP only)
         NOAUTO/S                Do not auto-detect wrap mode
         LINDENT/K/N             Threshold for \@{lindent} to convert to <blockquote>
+      * THEME=NAME/K            Colour theme (one of AMIGAGUIDE, LIGHT or DARK)
       ^ COLOURn                 Colour value in hex, where n is:
                                 0 = Text
                                 1 = Shine
