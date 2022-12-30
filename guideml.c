@@ -247,6 +247,12 @@ char VerStr[] = VERSTAG; //"\0$VER: GuideML "VERSIONSTR" ("VERSIONDATE")";
   static unsigned char defbar[] = " | ";
 //	struct WBArg *wbarg;
 
+#ifndef __HAIKU__
+// On Haiku and other 64bit systems, IPTR is a 64bit integer (like intptr_t). This allows to use
+// readargs and have each argument be either an integer or a pointer as needed.
+#define IPTR LONG
+#define UIPTR ULONG
+#endif
 
 struct Parameter                          /* Structure of Shell parameters */
 {
@@ -1057,16 +1063,23 @@ if((param.smartwrap) && (strlen(buf)<2))
 			  linkstr[linkpos] = '\0';
 			  if(!*link) return(0);
 			  link++;
-			  if(-1 == FPuts(fh,"<a href=\"")) return(0);
+			  if (strncmp(linkstr, "openurl", 7) == 0)
+			  {
+			    if(-1 == FPuts(fh,"<a href=\"")) return(0);
 
-			  if(-1 == FPuts(fh,linkstr + 8)) return(0); // skip "openurl"
+			    if(-1 == FPuts(fh,linkstr + 8)) return(0); // skip "openurl"
 
-			  if(-1 == FPuts(fh,"\">")) return(0);
+			    if(-1 == FPuts(fh,"\">")) return(0);
+			    while((ch = *buf++) != '\"')
+				if(-1 == MyPutCh(fh,ch)) return(0);
+			    if(-1 == FPuts(fh,"</a>")) return(0);
+			  } else {
+			    if(!param.nowarn) printf("Line %ld: WARNING: '%s' system command skipped!\n",linenr,linkstr);
+			    while((ch = *buf++) != '\"')
+				if(-1 == MyPutCh(fh,ch)) return(0);
+			  }
 
-			  while((ch = *buf++) != '\"')
-            	if(-1 == MyPutCh(fh,ch)) return(0);
-          	  if(-1 == FPuts(fh,"</a>")) return(0);
-          	  buf = link;
+			  buf = link;
 		  } else {
 				if(-1 == FPuts(fh,"<u>")) return(0);
 				while((ch = *buf++) != '\"')
