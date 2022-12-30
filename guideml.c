@@ -48,17 +48,18 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 
 #include <stdio.h>
 #include <string.h>
+#include <clib/alib_protos.h>
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/gadtools.h>
 #include <proto/locale.h>
 #include <proto/utility.h>
 #include <exec/lists.h>
-//#include <exec/nodes.h>
-//#include <exec/memory.h>
-//#include <exec/exec.h>
+#include <exec/nodes.h>
+#include <exec/memory.h>
+#include <exec/exec.h>
 #include <dos/dos.h>
-//#include <libraries/dos.h>
+#include <libraries/dos.h>
 
 #include <exec/types.h>
 #include <exec/io.h>
@@ -92,6 +93,22 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 #include <workbench/workbench.h>
 
 #include <stdlib.h>
+
+#include <classes/window.h>
+#include <gadgets/layout.h>
+#include <gadgets/checkbox.h>
+#include <gadgets/button.h>
+#include <gadgets/chooser.h>
+#include <gadgets/clicktab.h>
+// #include <gadgets/integer.h>
+#include <gadgets/string.h>
+#include <gadgets/slider.h>
+// #include <gadgets/listbrowser.h>
+#include <gadgets/getfile.h>
+#include <images/label.h>
+
+//#include <reaction/reaction.h>
+#include <reaction/reaction_macros.h>
 
 #include "GuideML_rev.h"
 
@@ -148,17 +165,22 @@ struct Library *IconBase;
   #define GetColorObject      NewObject( GETCOLOR_GetClass(), NULL
 #endif
 
+void err(char *,char *,int);
+#ifdef __HAIKU__
 void err(char * a,char * b,int c)
 {
 	fprintf(stderr, "%s %s %d\n", a, b, c);
 }
+#endif
 void ui();
-//void free_list(struct List *);
-//void freetablist(struct List *);
-//BOOL make_list(struct List *, UBYTE **);
-//BOOL maketablist(struct List *, UBYTE **);
+void free_list(struct List *);
+void freetablist(struct List *);
+BOOL make_list(struct List *, UBYTE **);
+BOOL maketablist(struct List *, UBYTE **);
 void gettooltypes(); // struct WBArg *);
+struct Menu *addmenu(struct Window*);
 void cleanup(int);
+int wbmain(struct WBStartup*);
 
 enum
 {
@@ -242,32 +264,32 @@ struct Parameter                          /* Structure of Shell parameters */
   STRPTR find;
   STRPTR bar;
   STRPTR bodyext;
-  intptr_t   verbatim;
-  intptr_t   images;
-  intptr_t   footer;
+  IPTR   verbatim;
+  IPTR   images;
+  IPTR   footer;
   STRPTR linkadd;
-  intptr_t   nolink;
-  intptr_t   noemail;
-  intptr_t   nowarn;
-  intptr_t   msdos;
-  intptr_t   singlefile;
-  intptr_t   dotdotslash;
-  intptr_t   numberlines;
-  intptr_t   nonavbar;
-  intptr_t   moznav;
-  intptr_t   showall;
+  IPTR   nolink;
+  IPTR   noemail;
+  IPTR   nowarn;
+  IPTR   msdos;
+  IPTR   singlefile;
+  IPTR   dotdotslash;
+  IPTR   numberlines;
+  IPTR   nonavbar;
+  IPTR   moznav;
+  IPTR   showall;
   STRPTR htmltoptxt;
   STRPTR htmlheadf;
   STRPTR htmlbottxt;
   STRPTR htmlfootf;
-  intptr_t   nohtml;
+  IPTR   nohtml;
   STRPTR cssurl;
-  intptr_t   wordwrap;
-  intptr_t   smartwrap;
-  intptr_t   varwidth;
-  intptr_t   noauto;
-  uintptr_t  lindent;
-  uintptr_t  colours[7];
+  IPTR   wordwrap;
+  IPTR   smartwrap;
+  IPTR   varwidth;
+  IPTR   noauto;
+  UIPTR  lindent;
+  UIPTR  colours[7];
 }param = {NULL};
 
 struct Tracker
@@ -497,6 +519,7 @@ char *strdup(const char *old)
 static const ULONG REGARGS AslGuideHook(__reg("a0") struct Hook *mh,__reg("a2") struct FileRequester *fr,__reg("a1") struct AnchorPath *ap)
 #else
 static const ULONG AslGuideHook(struct Hook *mh,struct FileRequester *fr,struct AnchorPathOld *ap)
+#endif
 {
 	BPTR file = 0;
 	char buffer[10];
@@ -527,7 +550,6 @@ static const ULONG AslGuideHook(struct Hook *mh,struct FileRequester *fr,struct 
   return(FALSE);
 } 
 #endif
-#endif
 
 //> SaveImg()
 /*------------------------------------------------------------*
@@ -541,7 +563,7 @@ LONG SaveImg(STRPTR file, UBYTE *data, ULONG len)
 {
   BPTR lock;
 
-#if 0
+#ifndef __HAIKU__
   if(lock = Lock(file,ACCESS_READ))       // Already existing?
   {
     UnLock(lock);
@@ -1950,7 +1972,9 @@ LONG Convert(BPTR fh)
    /* and go... */
   for(;;)
   {
-//    if(SetSignal(0L,SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C) goto ErrorBrk;
+#ifndef __HAIKU__
+    if(SetSignal(0L,SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C) goto ErrorBrk;
+#endif
 
      /* search the node name */
     node = buffer+strlen("@node ");
@@ -2449,7 +2473,9 @@ LONG PreScan(BPTR fh)
    /* Search for commands */
   for(;;)
   {
-    //if(SetSignal(0L,SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C) goto ErrorBrk;
+#ifndef __HAIKU__
+    if(SetSignal(0L,SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C) goto ErrorBrk;
+#endif
     linenr++;
     if(!FGets(fh,buffer,LINELEN)) break;      // Scan all lines
     if(buffer[0]!='@') continue;              // no command line
@@ -2821,7 +2847,6 @@ if(ok)
       if(param.to)
       {
 
-#if 0
         destlock = Lock(param.to,ACCESS_READ);
         if(!destlock)
         {
@@ -2831,7 +2856,6 @@ if(ok)
           goto Flush;
         }
         oldlock = CurrentDir(destlock);
-#endif
       }
 
       if(!PreScan(fh))
@@ -2899,7 +2923,7 @@ Flush:
     if(htmlbot) FreeMem(htmlbot,hfs);
 
 	//if(destlock) UnLock(destlock);
-    //if(oldlock) UnLock(CurrentDir(oldlock));
+    if(oldlock) UnLock(CurrentDir(oldlock));
 
     if(!wb) FreeArgs(args);
   }
@@ -5136,6 +5160,78 @@ if(UtilityBase)
 	 CloseLibrary(GetColorBase);
 	}
 #endif
+
+     if(GetFileBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IGetFile);
+	#endif
+ CloseLibrary(GetColorBase);
+	}
+
+     if(StringBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IString);
+	#endif
+ CloseLibrary(StringBase);
+	}
+
+     if(SliderBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)ISlider);
+	#endif
+ CloseLibrary(SliderBase);
+	}
+
+     if(GadToolsBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IGadTools);
+	#endif
+ CloseLibrary(GadToolsBase);
+	}
+
+     if(IconBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IIcon);
+	#endif
+ CloseLibrary(IconBase);
+	}
+
+     if(AslBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IAsl);
+	#endif
+ CloseLibrary(AslBase);
+	}
+
+     if(DOSBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IDOS);
+	#endif
+ CloseLibrary(DOSBase);
+	}
+
+     if(WorkbenchBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IWorkbench);
+	#endif
+ CloseLibrary(WorkbenchBase);
+	}
+
+     if(IntuitionBase)
+	{
+	#ifdef __amigaos4__
+	DropInterface((struct Interface *)IIntuition);
+	#endif
+ CloseLibrary(IntuitionBase);
+	}
 
 #endif
 

@@ -18,6 +18,8 @@
 #define MODE_NEWFILE (addr_t)"w"
 #define MODE_READWRITE (addr_t)"w+"
 
+#define ACCESS_READ 0
+
 enum {
 	OFFSET_CURRENT = SEEK_CUR,
 	OFFSET_BEGINING = SEEK_SET,

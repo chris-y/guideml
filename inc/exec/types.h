@@ -30,6 +30,7 @@ typedef const char* CONST_STRPTR;
 #endif
 typedef void* APTR;
 typedef intptr_t IPTR;
+typedef uintptr_t UIPTR;
 
 typedef unsigned char BOOL;
 
