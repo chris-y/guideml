@@ -3,7 +3,7 @@ Uploader: chris@unsatisfactorysoftware.co.uk (Chris Young)
 Author:   shred@chessy.aworld.de (Richard Koerber),chris@unsatisfactorysoftware.co.uk (Chris Young)
 Type:     text/hyper
 Kurz:     AmigaGuide -> HTML-Konverter mit GUI
-Version:  3.16
+Version:  3.17
 Language: English
 Architecture: m68k-amigaos >= 3.2.0; ppc-amigaos >= 4.0.0
 
@@ -40,6 +40,13 @@ AmigaGuide to HTML file converter, with lots of features including:
 
 
 CHANGES SINCE 3.11:
+
+V3.17 (30.12.2022)
+
+* Add basic support for \@{system command with openurl command.
+
+* Add colour theme management with new light and dark colour themes in addition to the default AmigaGuide compatible one.
+
 V3.16 (01.10.2021)
 
 * Use locale.library to convert node names, this should remove accents from characters for better compatibility.  Note: Requires locale.library v38+, so command line now needs OS2.1 minimum.
