@@ -3036,7 +3036,6 @@ param.lindent=4;
   param.bar   = defbar;
   param.retrace = NULL;
 
-  int i;
   for (i = 0; i < 7; i++) {
 	param.colours[i] = colour_themes[0][i];
   }
@@ -5193,7 +5192,7 @@ if(UtilityBase)
 	#ifdef __amigaos4__
 	DropInterface((struct Interface *)IGetFile);
 	#endif
- CloseLibrary(GetColorBase);
+ CloseLibrary(GetFileBase);
 	}
 
      if(StringBase)
