@@ -166,15 +166,21 @@ struct Library *IconBase;
 #endif
 
 void err(char *,char *,int);
+#ifdef __HAIKU__
+void err(char * a,char * b,int c)
+{
+	fprintf(stderr, "%s %s %d\n", a, b, c);
+}
+#endif
 void ui();
 void free_list(struct List *);
 void freetablist(struct List *);
 BOOL make_list(struct List *, UBYTE **);
 BOOL maketablist(struct List *, UBYTE **);
 void gettooltypes(); // struct WBArg *);
-struct Menu *addmenu(struct Window *);
+struct Menu *addmenu(struct Window*);
 void cleanup(int);
-int wbmain(struct WBStartup *);
+int wbmain(struct WBStartup*);
 
 enum
 {
@@ -241,6 +247,20 @@ char VerStr[] = VERSTAG; //"\0$VER: GuideML "VERSIONSTR" ("VERSIONDATE")";
   static unsigned char defbar[] = " | ";
 //	struct WBArg *wbarg;
 
+#ifndef __HAIKU__
+// On Haiku and other 64bit systems, IPTR is a 64bit integer (like intptr_t). This allows to use
+// readargs and have each argument be either an integer or a pointer as needed.
+#define IPTR LONG
+#define UIPTR ULONG
+#endif
+
+static const UIPTR colour_themes[3][7] = {
+	// text      shine     shadow     fill   fill text background highlight
+	{ 0x000000, 0xffffff, 0x000000, 0x4a8abd, 0x000000, 0xcfcfcf, 0xffffff }, // AmigaGuide theme
+	{ 0x000000, 0xff4444, 0xcccccc, 0x4a8abd, 0x000000, 0xffffff, 0x4444ff }, // Light theme
+	{ 0xffffff, 0xff4444, 0xcccccc, 0x4a8abd, 0xffffff, 0x000000, 0x4444ff }, // Dark theme
+
+};
 
 struct Parameter                          /* Structure of Shell parameters */
 {
@@ -258,32 +278,33 @@ struct Parameter                          /* Structure of Shell parameters */
   STRPTR find;
   STRPTR bar;
   STRPTR bodyext;
-  LONG   verbatim;
-  LONG   images;
-  LONG   footer;
+  IPTR   verbatim;
+  IPTR   images;
+  IPTR   footer;
   STRPTR linkadd;
-  LONG   nolink;
-  LONG   noemail;
-  LONG   nowarn;
-  LONG   msdos;
-  LONG   singlefile;
-  LONG   dotdotslash;
-  LONG   numberlines;
-  LONG   nonavbar;
-  LONG   moznav;
-  LONG   showall;
+  IPTR   nolink;
+  IPTR   noemail;
+  IPTR   nowarn;
+  IPTR   msdos;
+  IPTR   singlefile;
+  IPTR   dotdotslash;
+  IPTR   numberlines;
+  IPTR   nonavbar;
+  IPTR   moznav;
+  IPTR   showall;
   STRPTR htmltoptxt;
   STRPTR htmlheadf;
   STRPTR htmlbottxt;
   STRPTR htmlfootf;
-  LONG   nohtml;
+  IPTR   nohtml;
   STRPTR cssurl;
-  LONG   wordwrap;
-  LONG	smartwrap;
-  LONG   varwidth;
-  LONG 	noauto;
-	ULONG lindent;
-	ULONG colours[7];
+  IPTR   wordwrap;
+  IPTR   smartwrap;
+  IPTR   varwidth;
+  IPTR   noauto;
+  UIPTR  lindent;
+  IPTR   theme;
+  UIPTR  colours[7];
 }param = {NULL};
 
 struct Tracker
@@ -466,12 +487,14 @@ char *macro[20];
 char *macrotext[20];
 int macros=0;
 
+#ifndef __HAIKU__
 /* <OS4 needs this to be set (OS4 is happy with NULL) */
 struct Locale *locale = NULL;
 
 #ifndef __amigaos4__
 typedef   signed long  int32;
 typedef   signed long long  int64;
+#endif
 #endif
 
 int32 seek64(BPTR file, int64 posn, int32 mode)
@@ -485,6 +508,7 @@ int32 seek64(BPTR file, int64 posn, int32 mode)
 #endif
 }
 
+#ifndef __HAIKU__
 char *mystrlwr(string)
 unsigned char *string;
 {
@@ -540,6 +564,7 @@ static const ULONG AslGuideHook(struct Hook *mh,struct FileRequester *fr,struct 
 	if(file) Close(file);
   return(FALSE);
 } 
+#endif
 
 //> SaveImg()
 /*------------------------------------------------------------*
@@ -553,11 +578,13 @@ LONG SaveImg(STRPTR file, UBYTE *data, ULONG len)
 {
   BPTR lock;
 
+#ifndef __HAIKU__
   if(lock = Lock(file,ACCESS_READ))       // Already existing?
   {
     UnLock(lock);
     return(1);                            // then leave with success
   }
+#endif
 
   if(param.verbatim) printf("Creating image '%s'\n",file);  // Report
 
@@ -674,9 +701,11 @@ if(param.dotdotslash && !param.singlefile && strchr(link,'/'))
 	}
   *var = '\0';
 
+#ifndef __HAIKU__
   StrConvert(locale, orig_var, strconvtmp, 100, SC_COLLATE1);
   mystrlwr(strconvtmp);
   strcpy(orig_var, strconvtmp);
+#endif
 }
 //<
 //> MyPutCh()
@@ -908,127 +937,171 @@ if((param.smartwrap) && (strlen(buf)<2))
           link++;
           while(*link && (*link==' ' || *link==',' || *link=='\t')) link++;
           if(!*link) return(0);
-          if(Strnicmp(link,"link",4))
-          {                               // this is NO link command!
-            if(-1 == FPuts(fh,"<u>")) return(0);
-            while((ch = *buf++) != '\"')
-              if(-1 == MyPutCh(fh,ch)) return(0);
-            if(-1 == FPuts(fh,"</u>")) return(0);
-            buf = link;
-            while(*buf && *buf!=' ') buf++;
-            *buf++ = '\0';
-            if(!param.nowarn) printf("Line %ld: WARNING: '%s' command skipped!\n",linenr,link);
-            while(*buf && *buf!='}') buf++;
-            if(*buf =='}') buf++;
-            break;
-          }
-          link+=4;
-          while(*link && *link==' ') link++;
-          if(!*link) return(0);
-          if(*link == '\"')
+          if(Strnicmp(link,"link",4) == 0)
           {
-            link++;
-            linkquot=1;
-          }
-          while(*link && *link!='}')
-          {
-            ch = *link++;
-            if(ch=='\"' && linkquot) break;
-            if(ch==' ' && !linkquot) break;
-            linkstr[linkpos++] = (ch==' ' || ch==':' ? '_' : ch);
-          }
+              link+=4;
+              while(*link && *link==' ') link++;
+              if(!*link) return(0);
+              if(*link == '\"')
+              {
+                  link++;
+                  linkquot=1;
+              }
+              while(*link && *link!='}')
+              {
+                  ch = *link++;
+                  if(ch=='\"' && linkquot) break;
+                  if(ch==' ' && !linkquot) break;
+                  if(ch>='A' && ch<='Z') ch+=32;
+                  linkstr[linkpos++] = (ch==' ' || ch==':' ? '_' : ch);
+              }
 
-			if(*link == ' ') link++;
+			  if(*link == ' ') link++;
 
-			if(*link >= '0' && *link <= '9')
-			{
-				linkline = atoi(link);
-			}
-			else
-			{
-				linkline=0;
-			}
+			  if(*link >= '0' && *link <= '9')
+			  {
+				  linkline = atoi(link);
+			  }
+			  else
+			  {
+				  linkline=0;
+			  }
 
-          while(*link && *link!='}') link++;
-          while(linkpos>0 && linkstr[linkpos-1] == '_') linkpos--;
-          if(linkstr[linkpos-1] == '\"')
-			{
-			 linkpos--;
-			}
-          linkstr[linkpos] = '\0';
-          if(!*link) return(0);
-          link++;
+			  while(*link && *link!='}') link++;
+			  while(linkpos>0 && linkstr[linkpos-1] == '_') linkpos--;
+			  if(linkstr[linkpos-1] == '\"')
+			  {
+				  linkpos--;
+			  }
+			  linkstr[linkpos] = '\0';
+			  if(!*link) return(0);
+			  link++;
+			  if(-1 == FPuts(fh,"<a href=\"")) return(0);
 
-          StrConvert(locale, linkstr, linkstr2, 100, SC_COLLATE1);
-          mystrlwr(linkstr2);
-          strcpy(linkstr, linkstr2);
+			  if(param.singlefile && strchr(linkstr,'/'))
+			  {
+				  char *temp = strchr(linkstr,'/');
+				  *temp = '\0';
 
-          if(-1 == FPuts(fh,"<a href=\"")) return(0);
+				  if(-1 == FPuts(fh,linkstr)) return(0);
 
-			if(param.singlefile && strchr(linkstr,'/'))
-			{
-				char *temp = strchr(linkstr,'/');
-				*temp = '\0';
+				  if(param.msdos)
+				  {
+					  if(-1 == FPuts(fh,".htm")) return(0);
+				  }
+				  else
+				  {
+					  if(-1 == FPuts(fh,".html")) return(0);
+				  }
 
-				if(-1 == FPuts(fh,linkstr)) return(0);
+				  *temp = '#';
+				  strcpy(linkstr,temp);
+			  }
+			  else if(param.linkadd)
+			  {
+				  if(-1 == FPuts(fh,param.linkadd)) return(0);
+			  }
 
-          		if(param.msdos)
-          		{
-            		if(-1 == FPuts(fh,".htm")) return(0);
-          		}
-          		else
-          		{
-            		if(-1 == FPuts(fh,".html")) return(0);
-          		}
+			  if(param.dotdotslash && !param.singlefile && strchr(linkstr,'/'))
+			  {
+				  if(-1 == FPuts(fh,"../")) return(0);
+			  }
+			  if(-1 == FPuts(fh,linkstr)) return(0);
 
-				*temp = '#';
-				strcpy(linkstr,temp);
-			}
-			else if(param.linkadd)
-          	{
-            	if(-1 == FPuts(fh,param.linkadd)) return(0);
-          	}
+			  if(!param.singlefile)
+			  {
+				  if(param.msdos)
+				  {
+					  if(-1 == FPuts(fh,".htm")) return(0);
+				  }
+				  else
+				  {
+					  if(-1 == FPuts(fh,".html")) return(0);
+				  }
+			  }
 
-			if(param.dotdotslash && !param.singlefile && strchr(linkstr,'/'))
-			{
-				if(-1 == FPuts(fh,"../")) return(0);
-			}
-          if(-1 == FPuts(fh,linkstr)) return(0);
+			  if(linkline)
+			  {
+				  if(!param.singlefile)
+				  {
+					  char temp[20];
+					  sprintf(temp,"#%ld",linkline);
+					  if(-1 == FPuts(fh,temp)) return(0);
+				  }
+				  else if(param.singlefile && param.numberlines)
+				  {
+					  char temp[20];
+					  sprintf(temp,"_line%ld",linkline);
+					  if(-1 == FPuts(fh,temp)) return(0);
+				  }
+			  }
 
-			if(!param.singlefile)
-			{
-          		if(param.msdos)
-          		{
-            		if(-1 == FPuts(fh,".htm")) return(0);
-          		}
-          		else
-          		{
-            		if(-1 == FPuts(fh,".html")) return(0);
-          		}
-			}
+			  if(-1 == FPuts(fh,"\">")) return(0);
 
-			if(linkline)
-			{
-				if(!param.singlefile)
-				{
-					char temp[20];
-					sprintf(temp,"#%ld",linkline);
-            		if(-1 == FPuts(fh,temp)) return(0);
-				}
-				else if(param.singlefile && param.numberlines)
-				{
-					char temp[20];
-					sprintf(temp,"_line%ld",linkline);
-            		if(-1 == FPuts(fh,temp)) return(0);
-				}
-			}
+			  while((ch = *buf++) != '\"')
+            	if(-1 == MyPutCh(fh,ch)) return(0);
+          	  if(-1 == FPuts(fh,"</a>")) return(0);
+          	  buf = link;
+		  } else if(strncmp(link, "system", 6) == 0) {
+			link += 6;
+			  while(*link && *link==' ') link++;
+			  if(!*link) return(0);
+			  if(*link == '\"')
+			  {
+				  link++;
+				  linkquot=1;
+			  }
+			  while(*link && *link!='}')
+			  {
+				  ch = *link++;
+				  if(ch=='\"' && linkquot) break;
+				  if(ch==' ' && !linkquot) break;
+				  linkstr[linkpos++] = ch;
+			  }
 
-            if(-1 == FPuts(fh,"\">")) return(0);
+			  if(*link == ' ') link++;
 
-          while((ch = *buf++) != '\"')
-            if(-1 == MyPutCh(fh,ch)) return(0);
-          if(-1 == FPuts(fh,"</a>")) return(0);
-          buf = link;
+			  linkline=0;
+
+			  while(*link && *link!='}') link++;
+			  while(linkpos>0 && linkstr[linkpos-1] == '_') linkpos--;
+			  if(linkstr[linkpos-1] == '\"')
+			  {
+				  linkpos--;
+			  }
+			  linkstr[linkpos] = '\0';
+			  if(!*link) return(0);
+			  link++;
+			  if (strncmp(linkstr, "openurl", 7) == 0)
+			  {
+			    if(-1 == FPuts(fh,"<a href=\"")) return(0);
+
+			    if(-1 == FPuts(fh,linkstr + 8)) return(0); // skip "openurl"
+
+			    if(-1 == FPuts(fh,"\">")) return(0);
+			    while((ch = *buf++) != '\"')
+				if(-1 == MyPutCh(fh,ch)) return(0);
+			    if(-1 == FPuts(fh,"</a>")) return(0);
+			  } else {
+			    if(!param.nowarn) printf("Line %ld: WARNING: '%s' system command skipped!\n",linenr,linkstr);
+			    while((ch = *buf++) != '\"')
+				if(-1 == MyPutCh(fh,ch)) return(0);
+			  }
+
+			  buf = link;
+		  } else {
+				if(-1 == FPuts(fh,"<u>")) return(0);
+				while((ch = *buf++) != '\"')
+					if(-1 == MyPutCh(fh,ch)) return(0);
+				if(-1 == FPuts(fh,"</u>")) return(0);
+				buf = link;
+				while(*buf && *buf!=' ') buf++;
+				*buf++ = '\0';
+				if(!param.nowarn) printf("Line %ld: WARNING: '%s' command skipped!\n",linenr,link);
+				while(*buf && *buf!='}') buf++;
+				if(*buf =='}') buf++;
+				break;
+          } 
           break;
         }
 
@@ -1725,7 +1798,9 @@ LONG Convert(BPTR fh)
   {
     linenr++;
     if(FGets(fh,buffer,LINELEN) == NULL) {
+#ifndef __HAIKU__
 	   if((!wb) && (IoErr() != 0)) printf("IO Error: %ld\n", IoErr());
+#endif
 	   goto Done;
 	}
 
@@ -1919,7 +1994,9 @@ LONG Convert(BPTR fh)
    /* and go... */
   for(;;)
   {
+#ifndef __HAIKU__
     if(SetSignal(0L,SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C) goto ErrorBrk;
+#endif
 
      /* search the node name */
     node = buffer+strlen("@node ");
@@ -1969,8 +2046,12 @@ LONG Convert(BPTR fh)
       *++line = '\0';               // terminate the line
     }
 
+#ifdef __HAIKU__
+	strcpy(nodename, node);
+#else
     StrConvert(locale, node, nodename, 100, SC_COLLATE1);
     mystrlwr(nodename);                   // node name to lowercase
+#endif
 
 	if(param.singlefile)
 	{
@@ -1983,7 +2064,9 @@ LONG Convert(BPTR fh)
 			mode = MODE_OLDFILE;
 		}
 
+#ifndef __HAIKU__
 		mystrlwr(param.from);
+#endif
 		strcpy(filename,FilePart(param.from));
 	    if(param.msdos)
     	{
@@ -2412,7 +2495,9 @@ LONG PreScan(BPTR fh)
    /* Search for commands */
   for(;;)
   {
+#ifndef __HAIKU__
     if(SetSignal(0L,SIGBREAKF_CTRL_C) & SIGBREAKF_CTRL_C) goto ErrorBrk;
+#endif
     linenr++;
     if(!FGets(fh,buffer,LINELEN)) break;      // Scan all lines
     if(buffer[0]!='@') continue;              // no command line
@@ -2623,7 +2708,7 @@ int main(int argc, char **argv)
 {
 
   struct RDArgs *args;
-  static char template[] = "FILE/A,TO/K,URL=HOMEURL/K,FINDURL=SEARCHURL/K,PREV/K,NEXT/K,INDEX/K,TOC/K,HELP/K,RETRACE/K,HOME/K,FIND=SEARCH/K,BAR/K,BODY/K,VER=VERBATIM/S,IMG=IMAGES/S,FTR=FOOTER/S,LA=LINKADD/K,NL=NOLINKS/S,NE=NOEMAIL/S,NW=NOWARN/S,MSDOS/S,SF=SINGLEFILE/S,PEL=PARENTEXTLINKS/S,LN=NUMBERLINES/S,NONAVBAR/S,MOZNAV/S,SHOWALL/S,HTMLHEAD/K,HTMLHEADF/K,HTMLFOOT/K,HTMLFOOTF/K,NOHTML/S,CSS/K,WORDWRAP/S,SMARTWRAP/S,VARWIDTH/S,NOAUTO/S,LINDENT/K/N";
+  static char template[] = "FILE/A,TO/K,URL=HOMEURL/K,FINDURL=SEARCHURL/K,PREV/K,NEXT/K,INDEX/K,TOC/K,HELP/K,RETRACE/K,HOME/K,FIND=SEARCH/K,BAR/K,BODY/K,VER=VERBATIM/S,IMG=IMAGES/S,FTR=FOOTER/S,LA=LINKADD/K,NL=NOLINKS/S,NE=NOEMAIL/S,NW=NOWARN/S,MSDOS/S,SF=SINGLEFILE/S,PEL=PARENTEXTLINKS/S,LN=NUMBERLINES/S,NONAVBAR/S,MOZNAV/S,SHOWALL/S,HTMLHEAD/K,HTMLHEADF/K,HTMLFOOT/K,HTMLFOOTF/K,NOHTML/S,CSS/K,WORDWRAP/S,SMARTWRAP/S,VARWIDTH/S,NOAUTO/S,LINDENT/K/N,THEME=NAME/K";
   BPTR fh;
   BPTR hhf;
   BPTR oldlock = (BPTR)NULL;
@@ -2635,6 +2720,7 @@ int main(int argc, char **argv)
 STRPTR oldlinkadd;
         BPTR destlock;
 
+#ifndef __HAIKU__
 	if((UtilityBase = OpenLibrary("utility.library",37))==0)
 		{
 		 err("Unable to open utility.library v37","OK",20);
@@ -2661,10 +2747,9 @@ STRPTR oldlinkadd;
    if(0 == argc) return(wbmain((struct WBStartup *)argv));
 
 	locale = OpenLocale(NULL);
-
+#endif
 
   NewList((struct List *)&entries);
-
 
 if(!wb)
 {
@@ -2678,15 +2763,7 @@ if(!wb)
   param.bar   = defbar;
   param.retrace = NULL;
 
-	param.colours[0] = 0x000000;
-	param.colours[1] = 0xffffff;
-	param.colours[2] = 0x000000;
-	param.colours[3] = 0x4a8abd;
-	param.colours[4] = 0x000000;
-	param.colours[5] = 0xcfcfcf;
-	param.colours[6] = 0xffffff;
-
-  if(args = (struct RDArgs *)ReadArgs(template,(LONG *)&param,NULL))
+  if(args = (struct RDArgs *)ReadArgs(template,(IPTR*)&param,NULL))
 	{
 		if(param.lindent)
 		{
@@ -2695,6 +2772,21 @@ if(!wb)
 
 		ok=1;
 	}
+
+  int theme = 0;
+  if (param.theme) {
+    if (strcmp(param.theme, "LIGHT") == 0)
+      theme = 1;
+    else if (strcmp(param.theme, "DARK") == 0)
+      theme = 2;
+  }
+
+
+  int i;
+  for (i = 0; i < 7; i++) {
+	param.colours[i] = colour_themes[theme][i];
+  }
+
 }
 
 if(ok)
@@ -2908,6 +3000,7 @@ Flush:
            "\tVARWIDTH/S\t\tDo not use fixed width font (#?WRAP only)\n"
            "\tNOAUTO/S\t\tDo not auto-detect wrap mode\n"
            "\tLINDENT/S\t\tThreshold over which @{lindent} converts to <blockquote>\n"
+           "\tTHEME=NAME/K\t\tColor theme to use (AMIGAGUIDE (default), LIGHT or DARK)\n"
 
            "\n");
   return(0);
@@ -2920,6 +3013,7 @@ Flush:
  * as it is largely cut'n'paste from a different project   *
  * --- Starts with GuideML 3.1 ---                         */
 
+#ifndef __HAIKU__
 int wbmain(struct WBStartup *WBenchMsg)
 {
 struct WBArg *wbarg;
@@ -2942,13 +3036,9 @@ param.lindent=4;
   param.bar   = defbar;
   param.retrace = NULL;
 
-	param.colours[0] = 0x000000;
-	param.colours[1] = 0xffffff;
-	param.colours[2] = 0x000000;
-	param.colours[3] = 0x4a8abd;
-	param.colours[4] = 0x000000;
-	param.colours[5] = 0xcfcfcf;
-	param.colours[6] = 0xffffff;
+  for (i = 0; i < 7; i++) {
+	param.colours[i] = colour_themes[0][i];
+  }
 
 param.nowarn = TRUE;
 
@@ -4984,10 +5074,12 @@ return(menustrip);
 
 
 }
+#endif
 
 void cleanup(int fail)
 {
 	if(ttfrom) FreeVec(ttfrom);
+#ifndef __HAIKU__
 	if(ttto) FreeMem(ttto,strlen(ttto)+1);
 	if(tthomeurl) FreeMem(tthomeurl,strlen(tthomeurl)+1);
 	if(ttfindurl) FreeMem(ttfindurl,strlen(ttfindurl)+1);
@@ -5135,7 +5227,6 @@ if(UtilityBase)
  CloseLibrary(IconBase);
 	}
 
-
      if(AslBase)
 	{
 	#ifdef __amigaos4__
@@ -5167,6 +5258,8 @@ if(UtilityBase)
 	#endif
  CloseLibrary(IntuitionBase);
 	}
+
+#endif
 
  exit(fail);
 

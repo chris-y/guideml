@@ -1,18 +1,18 @@
 VERSION		EQU	3
-REVISION	EQU	16
+REVISION	EQU	76
 
 DATE	MACRO
-		dc.b '1.10.2021'
+		dc.b '30.12.2022'
 		ENDM
 
 VERS	MACRO
-		dc.b 'GuideML 3.16'
+		dc.b 'GuideML 3.17'
 		ENDM
 
 VSTRING	MACRO
-		dc.b 'GuideML 3.16 (1.10.2021)',13,10,0
+		dc.b 'GuideML 3.17 (30.12.2022)',13,10,0
 		ENDM
 
 VERSTAG	MACRO
-		dc.b 0,'$VER: GuideML 3.16 (1.10.2021)',0
+		dc.b 0,'$VER: GuideML 3.17 (30.12.2022)',0
 		ENDM

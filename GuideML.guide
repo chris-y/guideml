@@ -1,11 +1,11 @@
 @database GuideML.guide
 @author "Chris Young"
-@(c) "© 2003-2021 Unsatisfactory Software"
-@$VER: GuideML.guide 3.16 (01.10.2021)
+@(c) "© 2003-2022 Unsatisfactory Software"
+@$VER: GuideML.guide 3.17 (30.12.2022)
 @smartwrap
 
 @node main "GuideML"
-@{b}GuideML 3.16@{ub}
+@{b}GuideML 3.17@{ub}
 
 
 @{"Disclaimer  " link disclaimer} Read this first
@@ -318,6 +318,7 @@ USAGE:  FILE/A                  AmigaGuide file to be converted
         VARWIDTH/S              Do not use fixed width font (#?WRAP only)
         NOAUTO/S                Do not auto-detect wrap mode
         LINDENT/K/N             Threshold for \@{lindent} to convert to <blockquote>
+      * THEME=NAME/K            Colour theme (one of AMIGAGUIDE, LIGHT or DARK)
       ^ COLOURn                 Colour value in hex, where n is:
                                 0 = Text
                                 1 = Shine
@@ -335,6 +336,12 @@ USAGE:  FILE/A                  AmigaGuide file to be converted
 Versions 1.x were written by Richard Körber.
 
 Versions 2.0 and up are updates by Chris Young.
+
+V3.17   » (30.12.2022)@{lindent 8}
+
+· Add basic support for \@{system command with the openurl command.
+
+· Add colour theme management with new light and dark themes in addition to the default AmigaGuide compatible colours.
 
 
 V3.16   » (01.10.2021)@{lindent 8}
