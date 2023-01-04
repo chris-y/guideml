@@ -115,7 +115,6 @@ vc guideml.c -o guideml68k -c99 -lamiga -O3
 #define LINELEN (1024)                    /* Maximum length of a line */
 
 struct Library *GadToolsBase;
-struct Library *LocaleBase;
 struct Library *WorkbenchBase;
 
 #ifdef __amigaos4__
@@ -139,12 +138,13 @@ struct LabelIFace *ILabel;
 struct CheckBoxIFace *ICheckBox;
 struct AslIFace *IAsl;
 //struct Library *DOSBase;
-#else
+
+struct Library *LocaleBase;
+struct Library *IntuitionBase;
 struct Library *UtilityBase = NULL;
 #endif
 
 struct Library *AslBase;
-struct Library *IntuitionBase;
 struct Library *WindowBase;
 struct Library *LayoutBase;
 struct Library *ButtonBase;
@@ -532,7 +532,11 @@ char *strdup(const char *old)
 #endif
 
 #ifndef __amigaos4__
+  #ifdef __GNUC__
+static ASM VOID AslGuideHook(REG(a0, struct Hook *mh), REG(a2, struct FileRequester *fr), REG(a1, struct AnchorPath *ap))
+  #else
 static const ULONG REGARGS AslGuideHook(__reg("a0") struct Hook *mh,__reg("a2") struct FileRequester *fr,__reg("a1") struct AnchorPath *ap)
+  #endif
 #else
 static const ULONG AslGuideHook(struct Hook *mh,struct FileRequester *fr,struct AnchorPathOld *ap)
 #endif
