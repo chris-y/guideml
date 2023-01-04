@@ -539,7 +539,7 @@ char *strdup(const char *old)
 #ifndef REG
 #define REG(reg,arg) arg __asm(#reg)
 #endif
-static ASM VOID AslGuideHook(REG(a0, struct Hook *mh), REG(a2, struct FileRequester *fr), REG(a1, struct AnchorPath *ap))
+static ASM ULONG AslGuideHook(REG(a0, struct Hook *mh), REG(a2, struct FileRequester *fr), REG(a1, struct AnchorPath *ap))
   #else
 static const ULONG REGARGS AslGuideHook(__reg("a0") struct Hook *mh,__reg("a2") struct FileRequester *fr,__reg("a1") struct AnchorPath *ap)
   #endif
@@ -547,14 +547,14 @@ static const ULONG REGARGS AslGuideHook(__reg("a0") struct Hook *mh,__reg("a2") 
 static const ULONG AslGuideHook(struct Hook *mh,struct FileRequester *fr,struct AnchorPathOld *ap)
 #endif
 {
-	BPTR file = 0;
-	char buffer[10];
-	char fname[1024];
+  BPTR file = 0;
+  char buffer[10];
+  char fname[1024];
 
-	if(ap->ap_Info.fib_DirEntryType > 0) return(TRUE);
+  if(ap->ap_Info.fib_DirEntryType > 0) return(TRUE);
 
-	strcpy(fname,fr->fr_Drawer);
-	AddPart(fname,ap->ap_Info.fib_FileName,1024);
+  strcpy(fname,fr->fr_Drawer);
+  AddPart(fname,ap->ap_Info.fib_FileName,1024);
 
   if(file = Open(fname,MODE_OLDFILE))
 	{
