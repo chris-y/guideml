@@ -20,18 +20,18 @@ jobs:
         with:
           name: GuideML_OS4
           path: ./GuideML_OS4
-#  build_68k:
-#    runs-on: ubuntu-latest
-#    container:
-#      image: walkero/docker4amigavbcc:latest-m68k
-#    name: build_os3
-#    steps:
-#      - uses: actions/checkout@v2
-#      - name: build_os3
-#        id: build_os3
-#        run: |
-#          make -f Makefile.vbcc
-#      - uses: actions/upload-artifact@v2
-#        with:
-#          name: GuideML_OS3
-#          path: ./GuideML_OS3
+  build_68k:
+    runs-on: ubuntu-latest
+    container:
+      image: amigadev/crosstools:m68k-amigaos
+    name: build_os3
+    steps:
+      - uses: actions/checkout@v2
+      - name: build_os3
+        id: build_os3
+        run: |
+          make -f Makefile.OS3
+      - uses: actions/upload-artifact@v2
+        with:
+          name: GuideML_OS3
+          path: ./GuideML_OS3
