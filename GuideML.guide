@@ -343,7 +343,7 @@ Versions 1.x were written by Richard Körber.
 
 Versions 2.0 and up are updates by Chris Young.
 
-V3.17   » (30.12.2022)@{lindent 8}
+V3.17   » (4.1.2023)@{lindent 8}
 
 · Add basic support for \@{system command with the openurl command.
 

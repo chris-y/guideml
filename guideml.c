@@ -303,7 +303,7 @@ struct Parameter                          /* Structure of Shell parameters */
   IPTR   varwidth;
   IPTR   noauto;
   UIPTR  lindent;
-  IPTR   theme;
+  STRPTR   theme;
   UIPTR  colours[7];
 }param = {NULL};
 
@@ -532,17 +532,7 @@ char *strdup(const char *old)
 #endif
 
 #ifndef __amigaos4__
-  #ifdef __GNUC__
-#ifndef ASM
-#define ASM
-#endif
-#ifndef REG
-#define REG(reg,arg) arg __asm(#reg)
-#endif
-static ASM ULONG AslGuideHook(REG(a0, struct Hook *mh), REG(a2, struct FileRequester *fr), REG(a1, struct AnchorPath *ap))
-  #else
 static const ULONG REGARGS AslGuideHook(__reg("a0") struct Hook *mh,__reg("a2") struct FileRequester *fr,__reg("a1") struct AnchorPath *ap)
-  #endif
 #else
 static const ULONG AslGuideHook(struct Hook *mh,struct FileRequester *fr,struct AnchorPathOld *ap)
 #endif
@@ -601,7 +591,7 @@ LONG SaveImg(STRPTR file, UBYTE *data, ULONG len)
 
   if(lock = Open(file,MODE_NEWFILE))      // Open the image file
   {
-    if(Write(lock, (LONG)data, len) == -1)        // Write the image
+    if(Write(lock, (void *)data, (LONG)len) == -1)        // Write the image
     {
       Close(lock);                        // Write failed, so
       return(0);                          // return without success
