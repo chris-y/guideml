@@ -218,13 +218,13 @@ enum
     GID_SHOWALL,
     GID_TABS,
     GID_PAGE,
-	GID_CTEXT,
+	GID_CTEXT, /* vvv GID_CTEXT to GID_CHIGHLIGHT must stay together and in this order */
 	GID_CSHINE,
 	GID_CSHADOW,
 	GID_CFILL,
 	GID_CFILLTEXT,
 	GID_CBACKGROUND,
-	GID_CHIGHLIGHT,
+	GID_CHIGHLIGHT, /* ^^^ */
 	GID_LINDENT,
     GID_LAST
 };
@@ -394,6 +394,7 @@ char *ttlinkadd = 0;
 char *tthtmlheadf = 0;
 char *tthtmlfootf = 0;
 char *ttcss = 0;
+char *tttheme = NULL;
 
 int wb=0;
 int ok=0;
@@ -3402,6 +3403,16 @@ void gettooltypes(struct WBArg *wbarg)
 					 	param.cssurl = ttcss;
 					}
 			}
+			
+		if(s = (char *)FindToolType(toolarray,"THEME"))
+			{
+				tttheme = AllocMem(strlen(s)+1,0);
+				if(tttheme)
+					{
+					 	strcpy(tttheme,s);
+					 	param.theme = tttheme;
+					}
+			}
 
 		if(s = (char *)FindToolType(toolarray,"COLOUR0"))
 		{
@@ -3472,7 +3483,7 @@ void savetooltypes(char *fname,int def)
 	UBYTE oldtype;
 	long olddir=-1;
 	int i=0;
-	UBYTE *newtooltypes[45];
+	UBYTE *newtooltypes[46];
 	char tttmp1[100];
 	char tttmp2[100];
 	char tttmp3[100];
@@ -3491,6 +3502,7 @@ void savetooltypes(char *fname,int def)
 	char tttmp16[100];
 	char tttmp17[100];
 	char tttmp18[100];
+	char tttmp19[100];
 	char *defaulttool = "guideml\0";
 
 	if(!def) {
@@ -3711,27 +3723,37 @@ void savetooltypes(char *fname,int def)
 			if(param.numberlines) newtooltypes[39] = "NUMBERLINES";
 								else newtooltypes[39] = "(NUMBERLINES)";
 
+			if(param.theme)
+			{
+				strcpy(tttmp19,"THEME=");
+				newtooltypes[40] = strcat(tttmp19,param.theme);
+			}
+				else
+			{
+				newtooltypes[40]="(THEME=AMIGAGUIDE)";
+			}
+
 		if(!def)
 		{
 
 			if(param.to)
 			{
 				strcpy(tttmp16,"TO=");
-				newtooltypes[40] = strcat(tttmp16,param.to);
+				newtooltypes[41] = strcat(tttmp16,param.to);
 			}
 				else
 			{
-				newtooltypes[40]="(TO=)";
+				newtooltypes[41]="(TO=)";
 			}
 
 			if(param.from)
 			{
 				strcpy(tttmp17,"FILE=");
-				newtooltypes[41] = strcat(tttmp17,param.from);
+				newtooltypes[42] = strcat(tttmp17,param.from);
 			}
 				else
 			{
-				newtooltypes[41]="(FILE=)";
+				newtooltypes[42]="(FILE=)";
 			}
 
 			dobj->do_DefaultTool = defaulttool;
@@ -3740,12 +3762,12 @@ void savetooltypes(char *fname,int def)
 		}
 		else
 		{
-			newtooltypes[40]=NULL;
 			newtooltypes[41]=NULL;
+			newtooltypes[42]=NULL;
 		}
 
 
-			newtooltypes[42] = NULL;
+			newtooltypes[43] = NULL;
 			dobj->do_ToolTypes = (STRPTR *)&newtooltypes;
 			PutIconTags(fname,dobj,NULL); //			PutDiskObject(fname,dobj); // PutDiskObject(wbarg->wa_Name,dobj);
 			dobj->do_ToolTypes=(STRPTR *)oldtooltypes;
@@ -3856,6 +3878,9 @@ int saveas()
 	if(param.smartwrap) strcat(guidemlcmd,"SMARTWRAP ");
 	if(param.varwidth) strcat(guidemlcmd,"VARWIDTH ");
 	if(param.noauto) strcat(guidemlcmd,"NOAUTO ");
+	if(param.theme) strcat(guidemlcmd,"THEME=\"");
+	if(param.theme) strcat(guidemlcmd,param.theme);
+	if(param.theme) strcat(guidemlcmd,"\" ");
 	strcat(guidemlcmd,"\n");
 
 
@@ -4163,7 +4188,7 @@ if(scrn = LockPubScreen(NULL)) UnlockPubScreen(NULL,scrn);
 									LayoutEnd,
 								LayoutEnd,
           		     			CHILD_WeightedHeight, 0,
-#ifdef __amigaos4__
+#ifdef __amigaos4__ /* TODO: Check getcolor for OS3.2 */
 				               	LAYOUT_AddChild,HGroupObject,
 									LAYOUT_BevelStyle,BVS_GROUP,
 									LAYOUT_Label,"Colours",
@@ -4544,11 +4569,25 @@ if(scrn = LockPubScreen(NULL)) UnlockPubScreen(NULL,scrn);
                                 				case 1: // Settings
                                 					switch(itemnum)
                                 					{
-                                						case 0:
+														int i;
+
+														case 0:
+															for (i = 0; i < 7; i++) {
+																int theme = subnum;
+																param.colours[i] = colour_themes[theme][i];
+																#ifdef __amigaos4__
+																RefreshSetGadgetAttrs(gadgets[GID_CTEXT + i], windows[WID_MAIN], NULL,
+																	GETCOLOR_Color, param.colours[i],
+																	TAG_DONE);
+																#endif
+															}
+  
+														break;
+                                						case 1:
                                 						 // save defaults
-																SetWindowPointer(windows[WID_MAIN],WA_BusyPointer,TRUE,WA_PointerDelay,TRUE,TAG_DONE);
-                                						 savetooltypes(defname,1);
-																SetWindowPointer(windows[WID_MAIN],TAG_DONE);
+															SetWindowPointer(windows[WID_MAIN],WA_BusyPointer,TRUE,WA_PointerDelay,TRUE,TAG_DONE);
+															savetooltypes(defname,1);
+															SetWindowPointer(windows[WID_MAIN],TAG_DONE);
                                 						break;
                                 					}
                                 				break;
@@ -5023,16 +5062,20 @@ struct Menu *addmenu(struct Window *win)
 APTR vi;
 	struct Menu *menustrip;
 	struct NewMenu menu[] = {
-									  {NM_TITLE,"Project"           , 0 ,0,0,0,},
-									  { NM_ITEM,"Save As..."        ,"S",0,0,0,},
-									  { NM_ITEM,NM_BARLABEL         , 0 ,0,0,0,},
-									  { NM_ITEM,"About..."          ,"A",0,0,0,},
-									  { NM_ITEM,NM_BARLABEL         , 0 ,0,0,0,},
-									  { NM_ITEM,"Quit"              ,"Q",0,0,0,},
-									  {NM_TITLE,"Settings"          , 0 ,0,0,0,},
-									  { NM_ITEM,"Save As Defaults"   ,"D",0,0,0,},
-									  {  NM_END,0,0,0,0,0,},
-									 };
+								{NM_TITLE,"Project"           , 0 ,0,0,0,},
+									{ NM_ITEM,"Save As..."        ,"S",0,0,0,},
+									{ NM_ITEM,NM_BARLABEL         , 0 ,0,0,0,},
+									{ NM_ITEM,"About..."          ,"A",0,0,0,},
+									{ NM_ITEM,NM_BARLABEL         , 0 ,0,0,0,},
+									{ NM_ITEM,"Quit"              ,"Q",0,0,0,},
+								{NM_TITLE,"Settings"          , 0 ,0,0,0,},
+									{ NM_ITEM,"Theme Presets"     ,0,0,0,0},
+										{ NM_SUB,"AmigaGuide", "0",0,0,0},
+										{ NM_SUB,"Light", "1",0,0,0},
+										{ NM_SUB,"Dark", "2",0,0,0},
+									{ NM_ITEM,"Save As Defaults"   ,"D",0,0,0,},
+								{  NM_END,0,0,0,0,0,},
+							};
 
 	menustrip = CreateMenus(menu,GTMN_FullMenu,TRUE,TAG_DONE);
 	vi = GetVisualInfoA(win->WScreen,TAG_DONE);
@@ -5096,6 +5139,7 @@ void cleanup(int fail)
 	if(tthtmlheadf) FreeMem(tthtmlheadf,strlen(tthtmlheadf)+1);
 	if(tthtmlfootf) FreeMem(tthtmlfootf,strlen(tthtmlfootf)+1);
 	if(ttcss) FreeMem(ttcss,strlen(ttcss)+1);
+	if(tttheme) FreeMem(tttheme,strlen(tttheme)+1);
 
 	if(LocaleBase) {
 		CloseLocale(locale);

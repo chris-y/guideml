@@ -106,6 +106,9 @@ the command line, or double-clicked on to be loaded back into GuideML.
 @{b}Settings@{ub}
 
 
+@{fg fill}Theme Presets@{fg text} - Sets the colour elements to the specified preset.
+
+
 @{fg fill}Save As Defaults@{fg text} - Saves the current settings as the defaults.
 
 @endnode
@@ -190,7 +193,7 @@ or none.
 
 The other options on this page specify the colours to be used for AmigaGuide
 colour names.  These only appear on OS4, OS3 users can specify them in
-tooltypes.
+tooltypes.  They can also be set on both systems using the Theme Presets menu item.
 
 @endnode
 
@@ -318,7 +321,8 @@ USAGE:  FILE/A                  AmigaGuide file to be converted
         VARWIDTH/S              Do not use fixed width font (#?WRAP only)
         NOAUTO/S                Do not auto-detect wrap mode
         LINDENT/K/N             Threshold for \@{lindent} to convert to <blockquote>
-      * THEME=NAME/K            Colour theme (one of AMIGAGUIDE, LIGHT or DARK)
+        THEME=NAME/K            Colour theme (one of AMIGAGUIDE, LIGHT or DARK)
+                                (Note: is settable from tooltypes but only passes through to the "save as" option)
       ^ COLOURn                 Colour value in hex, where n is:
                                 0 = Text
                                 1 = Shine
@@ -329,6 +333,8 @@ USAGE:  FILE/A                  AmigaGuide file to be converted
                                 6 = Highlight
 
 @{body}
+
+
 
 @endnode
 
