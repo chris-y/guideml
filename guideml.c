@@ -533,6 +533,12 @@ char *strdup(const char *old)
 
 #ifndef __amigaos4__
   #ifdef __GNUC__
+#ifndef ASM
+#define ASM
+#endif
+#ifndef REG
+#define REG(reg,arg) arg __asm(#reg)
+#endif
 static ASM VOID AslGuideHook(REG(a0, struct Hook *mh), REG(a2, struct FileRequester *fr), REG(a1, struct AnchorPath *ap))
   #else
 static const ULONG REGARGS AslGuideHook(__reg("a0") struct Hook *mh,__reg("a2") struct FileRequester *fr,__reg("a1") struct AnchorPath *ap)
