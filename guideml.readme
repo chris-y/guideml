@@ -4,7 +4,6 @@ Author:   shred@chessy.aworld.de (Richard Koerber),chris@unsatisfactorysoftware.
 Type:     text/hyper
 Kurz:     AmigaGuide -> HTML-Konverter mit GUI
 Version:  3.17
-Language: English
 Architecture: m68k-amigaos >= 3.2.0; ppc-amigaos >= 4.0.0
 
 GUI requires an AmigaOS at least 3.5 with Reaction.
